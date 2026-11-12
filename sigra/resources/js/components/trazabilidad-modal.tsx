@@ -1,7 +1,6 @@
 import type { RefObject } from 'react';
 import { useEffect, useState } from 'react';
 import {
-    AlertCircle,
     CalendarDays,
     ChevronDown,
     ChevronUp,
@@ -17,11 +16,14 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { DetalleCambiosTrazabilidad } from '@/components/detalle-cambios-trazabilidad';
-import { historialTrazabilidadPorVisita } from '@/pages/visitas-extensionismo/datos-trazabilidad';
-import type { VisitaDemostracion } from '@/pages/visitas-extensionismo/datos-demostracion';
+import type {
+    VersionTrazabilidad,
+    VisitaTrazabilidad,
+} from '@/types/trazabilidad';
 
 type Props = {
-    visita: VisitaDemostracion | null;
+    visita: VisitaTrazabilidad | null;
+    historial?: VersionTrazabilidad[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
     returnFocusRef?: RefObject<HTMLButtonElement | null>;
@@ -29,6 +31,7 @@ type Props = {
 
 export function TrazabilidadModal({
     visita,
+    historial = [],
     open,
     onOpenChange,
     returnFocusRef,
@@ -36,10 +39,7 @@ export function TrazabilidadModal({
     const [versionesAbiertas, setVersionesAbiertas] = useState<Set<string>>(
         () => new Set(),
     );
-    const versiones = visita
-        ? (historialTrazabilidadPorVisita[visita.numero] ?? [])
-        : [];
-    const versionesOrdenadas = [...versiones].sort(
+    const versionesOrdenadas = [...historial].sort(
         (versionA, versionB) => versionB.numero - versionA.numero,
     );
 
@@ -150,103 +150,117 @@ export function TrazabilidadModal({
                             <h2 className="text-lg font-extrabold text-foreground">
                                 Historial de cambios
                             </h2>
-                            <div className="flex items-center gap-2 rounded-xl border border-[#2563EB]/20 bg-[#EFF6FF] px-3 py-2 text-xs text-[#1E40AF] dark:border-[#60A5FA]/30 dark:bg-[#172A4A] dark:text-[#BFDBFE]">
-                                <AlertCircle className="size-4 shrink-0" />
-                                <span>
-                                    Datos de demostración: estos eventos aún no
-                                    provienen de una auditoría real.
-                                </span>
-                            </div>
+                            {versionesOrdenadas.length > 0 ? (
+                                <div className="relative space-y-4">
+                                    {versionesOrdenadas.map(
+                                        (version, index) => {
+                                            const estaAbierta =
+                                                versionesAbiertas.has(
+                                                    version.id,
+                                                );
 
-                            <div className="relative space-y-4">
-                                {versionesOrdenadas.map((version, index) => {
-                                    const estaAbierta = versionesAbiertas.has(
-                                        version.id,
-                                    );
-
-                                    return (
-                                        <div
-                                            key={version.id}
-                                            className="relative flex gap-3 sm:gap-4"
-                                        >
-                                            <div className="relative flex w-9 shrink-0 justify-center">
-                                                {index <
-                                                    versiones.length - 1 && (
-                                                    <span className="absolute top-9 bottom-[-1rem] w-px bg-border" />
-                                                )}
-                                                <span className="z-10 flex size-9 items-center justify-center rounded-full bg-[#2563EB] text-xs font-extrabold text-white shadow-[0_3px_0_#1747A5]">
-                                                    v{version.numero}
-                                                </span>
-                                            </div>
-                                            <article className="min-w-0 flex-1 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                    <div className="min-w-0">
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            <h3 className="text-base font-extrabold break-words text-foreground">
-                                                                {
-                                                                    version.operacion
-                                                                }
-                                                            </h3>
-                                                            <span className="rounded-full bg-[#EEF2EE] px-2.5 py-1 text-xs font-bold text-[#40554A] dark:bg-[#2C3E32] dark:text-[#D9EBDD]">
-                                                                {
-                                                                    version
-                                                                        .cambios
-                                                                        .length
-                                                                }{' '}
-                                                                {version.cambios
-                                                                    .length ===
-                                                                1
-                                                                    ? 'campo'
-                                                                    : 'campos'}
-                                                            </span>
-                                                        </div>
-                                                        <p className="mt-1 text-sm break-words text-[#52645A] dark:text-[#C4D5C8]">
-                                                            {version.usuario} ·{' '}
-                                                            {version.fechaHora}
-                                                        </p>
-                                                    </div>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            alternarVersion(
-                                                                version.id,
-                                                            )
-                                                        }
-                                                        aria-expanded={
-                                                            estaAbierta
-                                                        }
-                                                        aria-controls={`cambios-${version.id}`}
-                                                        className="w-full shrink-0 rounded-xl border border-[#2563EB] bg-[#2563EB] text-white hover:border-[#1D4ED8] hover:bg-[#1D4ED8] hover:text-white focus-visible:ring-[4px] focus-visible:ring-[#2563EB]/35 focus-visible:ring-offset-2 sm:w-auto dark:border-[#2563EB] dark:bg-[#2563EB] dark:text-white dark:hover:border-[#1D4ED8] dark:hover:bg-[#1D4ED8] dark:hover:text-white"
-                                                    >
-                                                        {estaAbierta
-                                                            ? 'Ocultar cambios'
-                                                            : 'Ver cambios'}
-                                                        {estaAbierta ? (
-                                                            <ChevronUp className="size-4" />
-                                                        ) : (
-                                                            <ChevronDown className="size-4" />
+                                            return (
+                                                <div
+                                                    key={version.id}
+                                                    className="relative flex gap-3 sm:gap-4"
+                                                >
+                                                    <div className="relative flex w-9 shrink-0 justify-center">
+                                                        {index <
+                                                            versionesOrdenadas.length -
+                                                                1 && (
+                                                            <span className="absolute top-9 bottom-[-1rem] w-px bg-border" />
                                                         )}
-                                                    </Button>
-                                                </div>
-
-                                                {estaAbierta && (
-                                                    <div
-                                                        id={`cambios-${version.id}`}
-                                                    >
-                                                        <DetalleCambiosTrazabilidad
-                                                            cambios={
-                                                                version.cambios
-                                                            }
-                                                        />
+                                                        <span className="z-10 flex size-9 items-center justify-center rounded-full bg-[#2563EB] text-xs font-extrabold text-white shadow-[0_3px_0_#1747A5]">
+                                                            v{version.numero}
+                                                        </span>
                                                     </div>
-                                                )}
-                                            </article>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                                    <article className="min-w-0 flex-1 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+                                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                            <div className="min-w-0">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <h3 className="text-base font-extrabold break-words text-foreground">
+                                                                        {
+                                                                            version.operacion
+                                                                        }
+                                                                    </h3>
+                                                                    <span className="rounded-full bg-[#EEF2EE] px-2.5 py-1 text-xs font-bold text-[#40554A] dark:bg-[#2C3E32] dark:text-[#D9EBDD]">
+                                                                        {
+                                                                            version
+                                                                                .cambios
+                                                                                .length
+                                                                        }{' '}
+                                                                        {version
+                                                                            .cambios
+                                                                            .length ===
+                                                                        1
+                                                                            ? 'campo'
+                                                                            : 'campos'}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="mt-1 text-sm break-words text-[#52645A] dark:text-[#C4D5C8]">
+                                                                    {
+                                                                        version.usuario
+                                                                    }{' '}
+                                                                    ·{' '}
+                                                                    {
+                                                                        version.fechaHora
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    alternarVersion(
+                                                                        version.id,
+                                                                    )
+                                                                }
+                                                                aria-expanded={
+                                                                    estaAbierta
+                                                                }
+                                                                aria-controls={`cambios-${version.id}`}
+                                                                className="w-full shrink-0 rounded-xl border border-[#2563EB] bg-[#2563EB] text-white hover:border-[#1D4ED8] hover:bg-[#1D4ED8] hover:text-white focus-visible:ring-[4px] focus-visible:ring-[#2563EB]/35 focus-visible:ring-offset-2 sm:w-auto dark:border-[#2563EB] dark:bg-[#2563EB] dark:text-white dark:hover:border-[#1D4ED8] dark:hover:bg-[#1D4ED8] dark:hover:text-white"
+                                                            >
+                                                                {estaAbierta
+                                                                    ? 'Ocultar cambios'
+                                                                    : 'Ver cambios'}
+                                                                {estaAbierta ? (
+                                                                    <ChevronUp className="size-4" />
+                                                                ) : (
+                                                                    <ChevronDown className="size-4" />
+                                                                )}
+                                                            </Button>
+                                                        </div>
+
+                                                        {estaAbierta && (
+                                                            <div
+                                                                id={`cambios-${version.id}`}
+                                                            >
+                                                                <DetalleCambiosTrazabilidad
+                                                                    cambios={
+                                                                        version.cambios
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </article>
+                                                </div>
+                                            );
+                                        },
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-5 py-8 text-center">
+                                    <p className="font-semibold text-foreground">
+                                        No hay historial de cambios.
+                                    </p>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        Las modificaciones registradas
+                                        aparecerán aquí.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </DialogContent>

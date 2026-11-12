@@ -10,8 +10,8 @@ export function compararVersiones(
 ): CambioTrazabilidad[] {
     return camposTrazabilidad.reduce<CambioTrazabilidad[]>(
         (cambios, { clave, etiqueta }) => {
-            const anterior = versionAnterior.estadoCompleto[clave];
-            const nuevo = versionNueva.estadoCompleto[clave];
+            const anterior = versionAnterior.estadoCompleto?.[clave] ?? '';
+            const nuevo = versionNueva.estadoCompleto?.[clave] ?? '';
 
             if (anterior !== nuevo) {
                 cambios.push({ campo: clave, etiqueta, anterior, nuevo });

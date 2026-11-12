@@ -10,9 +10,18 @@ export const camposTrazabilidad = [
     },
 ] as const;
 
-export type CampoTrazabilidad = (typeof camposTrazabilidad)[number]['clave'];
+export type CampoTrazabilidad = string;
 
 export type EstadoCompletoVisita = Record<CampoTrazabilidad, string>;
+
+export type VisitaTrazabilidad = {
+    numero: string;
+    productor: string;
+    extensionista: string;
+    fecha: string;
+    vereda: string;
+    estado: string;
+};
 
 export type CambioTrazabilidad = {
     campo: CampoTrazabilidad;
@@ -27,7 +36,6 @@ export type VersionTrazabilidad = {
     operacion: string;
     usuario: string;
     fechaHora: string;
-    esDemostracion: true;
-    estadoCompleto: EstadoCompletoVisita;
+    estadoCompleto?: EstadoCompletoVisita;
     cambios: CambioTrazabilidad[];
 };

@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
 import {
     CalendarDays,
     ChevronLeft,
@@ -15,51 +15,60 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { editar, index } from '@/routes/productores';
-import { productoresDirectorioDemostracion } from './datos-demostracion';
 
-const productoresPorPagina = 2;
+type ProductorDirectorio = {
+    id: string;
+    nombreCompleto: string;
+    tipoDocumento: string;
+    numeroDocumento: string;
+    telefono: string;
+    fechaNacimiento: string;
+    fechaNacimientoISO: string;
+};
+
+type PageProps = {
+    productores?: ProductorDirectorio[];
+    filtros?: { nombre?: string; documento?: string };
+    paginacion?: { paginaActual: number; ultimaPagina: number; total: number };
+    totalProductores?: number;
+};
 
 const controlClassName =
     'h-12 w-full rounded-[16px] border-[1.5px] border-[#6F9479] bg-[#F7FBF4] px-4 text-[16px] text-[#10281D] outline-none transition hover:border-[#17803D] focus:border-[#17803D] focus:bg-white focus:ring-[4px] focus:ring-[#4E9A2B]/30 dark:border-[#5E8068] dark:bg-[#24382A] dark:text-[#F0FFF3] dark:focus:bg-[#294330]';
 
 export default function ListadoProductores() {
-    const [nombre, setNombre] = useState('');
-    const [documento, setDocumento] = useState('');
-    const [pagina, setPagina] = useState(1);
+    const { productores: productoresDirectorio = [], filtros = {}, paginacion = { paginaActual: 1, ultimaPagina: 1, total: 0 }, totalProductores = 0 } =
+        usePage<PageProps>().props;
+    const [nombre, setNombre] = useState(filtros.nombre ?? '');
+    const [documento, setDocumento] = useState(filtros.documento ?? '');
+    const primeraConsulta = useRef(true);
 
-    const productoresFiltrados = useMemo(() => {
-        const nombreNormalizado = nombre.trim().toLocaleLowerCase();
-        const documentoNormalizado = documento.trim().toLocaleLowerCase();
-
-        return productoresDirectorioDemostracion.filter((productor) => {
-            return (
-                productor.nombreCompleto
-                    .toLocaleLowerCase()
-                    .includes(nombreNormalizado) &&
-                productor.numeroDocumento
-                    .toLocaleLowerCase()
-                    .includes(documentoNormalizado)
-            );
-        });
+    useEffect(() => {
+        if (primeraConsulta.current) {
+            primeraConsulta.current = false;
+            return;
+        }
+        const temporizador = window.setTimeout(() => {
+            router.get(index.url({ query: { nombre: nombre || undefined, documento: documento || undefined } }), {}, { preserveState: true, preserveScroll: true, replace: true });
+        }, 350);
+        return () => window.clearTimeout(temporizador);
     }, [documento, nombre]);
 
     useEffect(() => {
-        setPagina(1);
-    }, [documento, nombre]);
+        setNombre(filtros.nombre ?? '');
+        setDocumento(filtros.documento ?? '');
+    }, [filtros.nombre, filtros.documento]);
 
-    const totalPaginas = Math.max(
-        1,
-        Math.ceil(productoresFiltrados.length / productoresPorPagina),
-    );
-    const paginaActual = Math.min(pagina, totalPaginas);
-    const productoresVisibles = productoresFiltrados.slice(
-        (paginaActual - 1) * productoresPorPagina,
-        paginaActual * productoresPorPagina,
-    );
+    const productoresVisibles = productoresDirectorio;
+    const productoresFiltrados = productoresDirectorio;
 
     const limpiarFiltros = () => {
         setNombre('');
         setDocumento('');
+    };
+
+    const cambiarPagina = (pagina: number) => {
+        router.get(index.url({ query: { nombre: nombre || undefined, documento: documento || undefined, page: pagina } }), {}, { preserveState: true, preserveScroll: true, replace: true });
     };
 
     return (
@@ -96,9 +105,6 @@ export default function ListadoProductores() {
                                 registrados en SIGRA.
                             </p>
                         </div>
-                        <span className="inline-flex w-fit shrink-0 items-center rounded-full bg-[#FFF4CC] px-4 py-2 text-[14px] font-extrabold text-[#665000]">
-                            Datos de demostración
-                        </span>
                     </section>
 
                     <section
@@ -118,9 +124,7 @@ export default function ListadoProductores() {
                                         Total de productores
                                     </p>
                                     <p className="mt-2 text-[32px] leading-none font-extrabold text-[#10281D] dark:text-[#F0FFF3]">
-                                        {
-                                            productoresDirectorioDemostracion.length
-                                        }
+                                        {totalProductores}
                                     </p>
                                     <p className="mt-2 text-[15px] text-[#607665] dark:text-[#BFD9C5]">
                                         Productores registrados
@@ -203,9 +207,6 @@ export default function ListadoProductores() {
                                     Información de identificación y contacto.
                                 </p>
                             </div>
-                            <span className="inline-flex w-fit items-center rounded-full bg-[#FFF4CC] px-4 py-2 text-[14px] font-extrabold text-[#665000]">
-                                Datos de demostración
-                            </span>
                         </div>
 
                         {productoresVisibles.length > 0 ? (
@@ -273,7 +274,7 @@ export default function ListadoProductores() {
                                                 className="min-h-11 rounded-[14px] bg-[#B45309] px-5 text-[15px] font-bold text-white shadow-[0_3px_0_#7F3605] hover:bg-[#92400E] focus-visible:ring-[4px] focus-visible:ring-[#B45309]/35"
                                             >
                                                 <Link
-                                                    href={editar(productor.id)}
+                                                    href={editar(Number(productor.id))}
                                                 >
                                                     <Pencil className="size-[18px]" />
                                                     Editar
@@ -284,43 +285,49 @@ export default function ListadoProductores() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="mt-6 rounded-2xl border border-dashed border-[#B5CAAE] bg-[#F7FBF4] px-5 py-8 text-center text-[15px] text-[#607665] dark:border-[#3E5B46] dark:bg-[#22352A] dark:text-[#BFD9C5]">
-                                No hay productores que coincidan con los filtros
-                                seleccionados.
-                            </p>
+                            <div className="mt-6 rounded-2xl border border-dashed border-[#B5CAAE] bg-[#F7FBF4] px-5 py-8 text-center dark:border-[#3E5B46] dark:bg-[#22352A]">
+                                <p className="font-semibold text-[#10281D] dark:text-[#F0FFF3]">
+                                    No hay productores registrados.
+                                </p>
+                                <p className="mt-1 text-[15px] text-[#607665] dark:text-[#BFD9C5]">
+                                    Los productores registrados mediante las
+                                    visitas de extensionismo aparecerán aquí.
+                                </p>
+                            </div>
                         )}
 
-                        <div className="mt-6 flex flex-col gap-4 border-t-2 border-dashed border-[#B5CAAE] pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-[#3E5B46]">
-                            <p className="text-[15px] text-[#607665] dark:text-[#BFD9C5]">
-                                Mostrando {productoresVisibles.length} de{' '}
-                                {productoresFiltrados.length} productores
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    type="button"
-                                    disabled={paginaActual <= 1}
-                                    onClick={() => setPagina(paginaActual - 1)}
-                                    variant="outline"
-                                    aria-label="Página anterior"
-                                    className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
-                                >
-                                    <ChevronLeft className="size-5" />
-                                </Button>
-                                <span className="flex min-h-11 items-center rounded-[14px] border-[1.5px] border-[#B5CAAE] bg-[#F7FBF4] px-4 text-[15px] font-bold text-[#607665]">
-                                    Página {paginaActual} de {totalPaginas}
-                                </span>
-                                <Button
-                                    type="button"
-                                    disabled={paginaActual >= totalPaginas}
-                                    onClick={() => setPagina(paginaActual + 1)}
-                                    variant="outline"
-                                    aria-label="Página siguiente"
-                                    className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
-                                >
-                                    <ChevronRight className="size-5" />
-                                </Button>
+                        {productoresFiltrados.length > 0 && (
+                            <div className="mt-6 flex flex-col gap-4 border-t-2 border-dashed border-[#B5CAAE] pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-[#3E5B46]">
+                                <p className="text-[15px] text-[#607665] dark:text-[#BFD9C5]">
+                                    Mostrando {productoresVisibles.length} de {paginacion.total} productores
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        disabled={paginacion.paginaActual <= 1}
+                                        onClick={() => cambiarPagina(paginacion.paginaActual - 1)}
+                                        variant="outline"
+                                        aria-label="Página anterior"
+                                        className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
+                                    >
+                                        <ChevronLeft className="size-5" />
+                                    </Button>
+                                    <span className="flex min-h-11 items-center rounded-[14px] border-[1.5px] border-[#B5CAAE] bg-[#F7FBF4] px-4 text-[15px] font-bold text-[#607665]">
+                                        Página {paginacion.paginaActual} de {paginacion.ultimaPagina}
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        disabled={paginacion.paginaActual >= paginacion.ultimaPagina}
+                                        onClick={() => cambiarPagina(paginacion.paginaActual + 1)}
+                                        variant="outline"
+                                        aria-label="Página siguiente"
+                                        className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
+                                    >
+                                        <ChevronRight className="size-5" />
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </section>
                 </div>
             </main>

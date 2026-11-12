@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import type { ChangeEvent, FormEvent, ReactElement, ReactNode } from 'react';
 import {
     cloneElement,
@@ -43,10 +43,20 @@ import { FormularioHeader } from '@/components/formulario-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { crear } from '@/routes/visitas-extensionismo';
+import { crear, index } from '@/routes/visitas-extensionismo';
 import { cn } from '@/lib/utils';
 
 type SectionTone = 'green' | 'blue' | 'leaf' | 'coral' | 'yellow';
+
+type Catalogo = { [key: string]: string | number };
+type Predio = { predio: number; nombre: string; divipola?: number; corregimiento?: number; vereda?: number; latitud?: string; longitud?: string };
+type ProductorEncontrado = { productor: number; nombres: string; apellidos: string; tipo_documento: string; numero_documento: string; telefono?: string; sexo?: string; predios: Predio[] };
+type VisitaEdicion = { id: number; estado: string; campos: Record<string, string | number | boolean | null>; nombres?: string; apellidos?: string; tipo_documento?: string; numero_documento?: string; telefono?: string; sexo?: string; productor_existente?: number; predio_existente?: number; nombre_predio?: string; divipola?: number; corregimiento?: number; vereda?: number; latitud?: string; longitud?: string; enfoques_poblacionales?: number[]; fotografias?: Array<{ id?: number; nombre?: string }> };
+type PageProps = { divipolas?: Catalogo[]; corregimientos?: Catalogo[]; veredas?: Catalogo[]; lineasProductivas?: Catalogo[]; especiesProductivas?: Catalogo[]; enfoquesPoblacionales?: Catalogo[]; visita?: VisitaEdicion };
+
+const nombresCampos: Record<string, string> = {
+    Fecha: 'fecha_visita', Departamento: 'departamento', Municipio: 'divipola', Corregimiento: 'corregimiento', Vereda: 'vereda', 'Nombre del predio': 'nombre_predio', Latitud: 'latitud', Longitud: 'longitud', Nombres: 'nombres', Apellidos: 'apellidos', 'Número de cédula': 'numero_documento', 'Número de celular': 'telefono', 'Línea productiva priorizada (extensión agropecuaria)': 'linea_productiva_principal', Especie: 'especie_productiva', 'Línea productiva secundaria': 'linea_productiva_secundaria', 'Número de animales': 'numero_animales', 'Área destinada en la línea productiva priorizada (hectáreas)': 'area_hectareas', 'Tipo de discapacidad': 'tipo_discapacidad', Puntaje: 'puntaje_sisben', 'Nombre de la asociación, cooperativa o gremio': 'nombre_asociacion', 'Nombre del aspecto objeto de la visita': 'aspecto_visita', 'Nombre del componente objeto de la visita': 'componente_visita', Diagnóstico: 'diagnostico', 'Actividades realizadas': 'actividades_realizadas', Recomendaciones: 'recomendaciones', 'Compromisos para la próxima visita': 'compromisos', 'Nombres y apellidos': 'nombre_extensionista', Disciplina: 'disciplina_extensionista', 'Título académico': 'titulo_academico_extensionista', 'Firma (usuario)': 'firma_usuario', 'Firma (extensionista)': 'firma_extensionista',
+};
 
 type SectionCardProps = {
     title: string;
@@ -143,18 +153,20 @@ function Field({
     required = false,
     children,
     className,
+    name,
 }: {
     label: ReactNode;
     required?: boolean;
     children: ReactNode;
     className?: string;
+    name?: string;
 }) {
     const generatedId = `campo-${useId().replace(/:/g, '')}`;
     const labelId = `${generatedId}-label`;
     const accessibleChild = isValidElement(children)
         ? cloneElement(children as ReactElement<Record<string, unknown>>, {
               id: generatedId,
-              name: generatedId,
+              name: name ?? (typeof label === 'string' ? (nombresCampos[label] ?? generatedId) : generatedId),
               'aria-labelledby': labelId,
               ...(required ? { 'aria-required': true, required: true } : {}),
           })
@@ -208,7 +220,7 @@ function SelectField({
     required,
 }: {
     icon?: LucideIcon;
-    options: string[];
+    options: Array<{ value: string; label: string }>;
     placeholder?: string;
     value?: string;
     onValueChange?: (value: string) => void;
@@ -241,8 +253,8 @@ function SelectField({
             >
                 <option value="">{placeholder}</option>
                 {options.map((option) => (
-                    <option key={option} value={option}>
-                        {option}
+                    <option key={option.value} value={option.value}>
+                        {option.label}
                     </option>
                 ))}
             </select>
@@ -293,9 +305,13 @@ function TextAreaField({
 function CheckOption({
     children,
     className,
+    name,
+    value,
 }: {
     children: ReactNode;
     className?: string;
+    name?: string;
+    value?: string;
 }) {
     return (
         <label
@@ -306,6 +322,8 @@ function CheckOption({
         >
             <input
                 type="checkbox"
+                name={name ?? (typeof children === 'string' && children === 'Víctima del conflicto armado' ? 'victima_conflicto_armado' : 'enfoques_poblacionales[]')}
+                value={value ?? (typeof children === 'string' ? children : '')}
                 className="peer m-0 size-[21px] shrink-0 appearance-none rounded-[7px] border-2 border-[#5E7A66] bg-white transition checked:border-white checked:bg-white focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#4E9A2B]/60"
             />
             <Check
@@ -375,7 +393,14 @@ function SignatureBox({
 }
 
 export default function CrearVisitaExtensionismo() {
-    const [primaryLine, setPrimaryLine] = useState('');
+    const { divipolas = [], corregimientos = [], veredas = [], lineasProductivas = [], especiesProductivas = [], enfoquesPoblacionales = [], visita } = usePage<PageProps>().props;
+    const formularioRef = useRef<HTMLFormElement | null>(null);
+    const [primaryLine, setPrimaryLine] = useState(String(visita?.campos.linea_productiva_principal ?? ''));
+    const [productorSeleccionado, setProductorSeleccionado] = useState<ProductorEncontrado | null>(null);
+    const [resultadosProductor, setResultadosProductor] = useState<ProductorEncontrado[]>([]);
+    const [buscandoProductor, setBuscandoProductor] = useState(false);
+    const [errorBusqueda, setErrorBusqueda] = useState('');
+    const [predioExistente, setPredioExistente] = useState(String(visita?.predio_existente ?? ''));
     const [photoFiles, setPhotoFiles] = useState<File[]>([]);
     const [latitud, setLatitud] = useState('');
     const [longitud, setLongitud] = useState('');
@@ -390,6 +415,56 @@ export default function CrearVisitaExtensionismo() {
     const [mensajeBorrador, setMensajeBorrador] = useState('');
     const solicitudAutomaticaRealizadaRef = useRef(false);
     const coordenadasEditadasManualmenteRef = useRef(false);
+    const consultaProductorRef = useRef<AbortController | null>(null);
+    const secuenciaConsultaProductorRef = useRef(0);
+    const identidadProductorModificadaRef = useRef(false);
+
+    useEffect(() => {
+        if (!visita || !formularioRef.current) return;
+        const valores: Record<string, unknown> = { ...visita.campos, nombres: visita.nombres, apellidos: visita.apellidos, tipo_documento: visita.tipo_documento, numero_documento: visita.numero_documento, telefono: visita.telefono, sexo: visita.sexo, productor_existente: visita.productor_existente, predio_existente: visita.predio_existente, nombre_predio: visita.nombre_predio, divipola: visita.divipola, corregimiento: visita.corregimiento, vereda: visita.vereda, latitud: visita.latitud, longitud: visita.longitud, sisben: visita.campos.afiliado_sisben, asociacion: visita.campos.afiliado_asociacion };
+        Object.entries(valores).forEach(([nombre, valor]) => {
+            if (valor === null || valor === undefined) return;
+            const controles = Array.from(formularioRef.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name="${nombre}"]`) ?? []);
+            const valorTexto = nombre === 'fecha_visita' ? String(valor).slice(0, 10) : String(valor);
+            controles.forEach((control) => {
+                if (control instanceof HTMLInputElement && (control.type === 'radio' || control.type === 'checkbox')) {
+                    const valorBooleano = valor === true || valorTexto === '1' || valorTexto === 'true';
+                    control.checked = control.value === valorTexto || (control.type === 'radio' && (valorBooleano ? control.value === 'Sí' : control.value === 'No')) || (control.type === 'checkbox' && valorBooleano);
+                } else {
+                    control.value = valorTexto;
+                }
+            });
+        });
+        setLatitud(String(visita.latitud ?? ''));
+        setLongitud(String(visita.longitud ?? ''));
+        visita.enfoques_poblacionales?.forEach((id) => { const control = formularioRef.current?.querySelector<HTMLInputElement>(`input[name="enfoques_poblacionales[]"][value="${id}"]`); if (control) control.checked = true; });
+    }, [visita]);
+
+    const buscarProductor = (texto: string) => {
+        if (texto.trim().length < 2) { setResultadosProductor([]); return; }
+        consultaProductorRef.current?.abort();
+        const controlador = new AbortController();
+        consultaProductorRef.current = controlador;
+        const secuencia = ++secuenciaConsultaProductorRef.current;
+        setBuscandoProductor(true); setErrorBusqueda('');
+        window.setTimeout(() => fetch(`/visitas-extensionismo/productores?numero_documento=${encodeURIComponent(texto)}`, { headers: { Accept: 'application/json' }, signal: controlador.signal })
+            .then(async (respuesta) => { if (!respuesta.ok) throw new Error(); return respuesta.json() as Promise<ProductorEncontrado[]>; })
+            .then((resultados) => { if (secuencia === secuenciaConsultaProductorRef.current) setResultadosProductor(resultados); })
+            .catch((error: unknown) => { if (error instanceof DOMException && error.name === 'AbortError') return; if (secuencia === secuenciaConsultaProductorRef.current) setErrorBusqueda('No fue posible consultar los productores.'); })
+            .finally(() => { if (secuencia === secuenciaConsultaProductorRef.current) setBuscandoProductor(false); }), 300);
+    };
+    const seleccionarProductor = (productor: ProductorEncontrado) => {
+        identidadProductorModificadaRef.current = false;
+        setProductorSeleccionado(productor); setResultadosProductor([]); setPredioExistente('');
+        const valores = { productor_existente: productor.productor, nombres: productor.nombres, apellidos: productor.apellidos, tipo_documento: productor.tipo_documento, numero_documento: productor.numero_documento, telefono: productor.telefono ?? '', sexo: productor.sexo ?? '' };
+        Object.entries(valores).forEach(([nombre, valor]) => { const control = formularioRef.current?.elements.namedItem(nombre) as HTMLInputElement | HTMLSelectElement | null; if (control) control.value = String(valor); });
+    };
+    const seleccionarPredio = (id: string) => {
+        setPredioExistente(id); const predio = productorSeleccionado?.predios.find((item) => String(item.predio) === id); if (!predio) return;
+        const valores = { nombre_predio: predio.nombre, divipola: predio.divipola, corregimiento: predio.corregimiento, vereda: predio.vereda };
+        Object.entries(valores).forEach(([nombre, valor]) => { const control = formularioRef.current?.elements.namedItem(nombre) as HTMLInputElement | HTMLSelectElement | null; if (control && valor) control.value = String(valor); });
+        setLatitud(String(predio.latitud ?? '')); setLongitud(String(predio.longitud ?? ''));
+    };
 
     const mostrarErrorGeolocalizacion = (error: GeolocationPositionError) => {
         const mensajes: Record<number, string> = {
@@ -509,14 +584,23 @@ export default function CrearVisitaExtensionismo() {
         );
     };
 
+    const enviarFormulario = (definitivo: boolean) => {
+        if (!formularioRef.current) return;
+        const datos = new FormData(formularioRef.current);
+        datos.set('productor_existente', productorSeleccionado ? String(productorSeleccionado.productor) : (visita && !identidadProductorModificadaRef.current ? String(visita.productor_existente ?? '') : ''));
+        datos.set('predio_existente', predioExistente);
+        const ruta = visita ? `/visitas-extensionismo/${visita.id}${definitivo ? '' : '/borrador'}` : (definitivo ? '/visitas-extensionismo' : '/visitas-extensionismo/borrador');
+        if (visita) datos.set('_method', 'put');
+        router.post(ruta, datos, { forceFormData: true, onSuccess: () => { if (!definitivo) setMensajeBorrador('Borrador guardado correctamente.'); }, onError: () => setMensajeBorrador('Revisa los campos indicados antes de guardar.') });
+    };
+
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        enviarFormulario(true);
     };
 
     const handleGuardarBorrador = () => {
-        setMensajeBorrador(
-            'Guardar borrador estará disponible cuando se integre la persistencia con Laravel y PostgreSQL.',
-        );
+        enviarFormulario(false);
     };
 
     return (
@@ -608,7 +692,7 @@ export default function CrearVisitaExtensionismo() {
                         ))}
                     </nav>
 
-                    <form
+                    <form ref={formularioRef}
                         onSubmit={handleSubmit}
                         className="flex flex-col gap-[26px] pb-2"
                     >
@@ -636,28 +720,28 @@ export default function CrearVisitaExtensionismo() {
                                     required
                                     className="md:col-span-4"
                                 >
-                                    <SelectField icon={MapPin} options={[]} />
+                                    <SelectField icon={MapPin} options={[...new Map(divipolas.map((item) => [String(item.codigo_departamento), { value: String(item.codigo_departamento), label: String(item.nombre_departamento) }])).values()]} />
                                 </Field>
                                 <Field
                                     label="Municipio"
                                     required
                                     className="md:col-span-5"
                                 >
-                                    <SelectField icon={MapPin} options={[]} />
+                                    <SelectField icon={MapPin} options={divipolas.map((item) => ({ value: String(item.divipola), label: `${item.codigo_municipio} · ${item.nombre_municipio}` }))} />
                                 </Field>
                                 <Field
                                     label="Corregimiento"
                                     required
                                     className="md:col-span-6"
                                 >
-                                    <SelectField icon={MapPin} options={[]} />
+                                    <SelectField icon={MapPin} options={corregimientos.map((item) => ({ value: String(item.corregimiento), label: String(item.nombre) }))} />
                                 </Field>
                                 <Field
                                     label="Vereda"
                                     required
                                     className="md:col-span-6"
                                 >
-                                    <SelectField icon={MapPin} options={[]} />
+                                    <SelectField icon={MapPin} options={veredas.map((item) => ({ value: String(item.vereda), label: String(item.nombre) }))} />
                                 </Field>
                                 <Field
                                     label="Nombre del predio"
@@ -669,6 +753,13 @@ export default function CrearVisitaExtensionismo() {
                                         placeholder="Ingrese el nombre del predio"
                                     />
                                 </Field>
+                                {productorSeleccionado && (
+                                    <div className="md:col-span-12">
+                                        <FieldLabel>Predio del productor</FieldLabel>
+                                        <SelectField value={predioExistente} onValueChange={seleccionarPredio} icon={Home} placeholder="Registrar un predio nuevo" options={productorSeleccionado.predios.map((predio) => ({ value: String(predio.predio), label: predio.nombre }))} />
+                                        <p className="mt-2 text-sm text-[#3E5547]">Selecciona un predio existente o deja esta opción vacía para registrar uno nuevo.</p>
+                                    </div>
+                                )}
                             </div>
                             <div className="mt-[18px] rounded-[24px] border-[1.5px] border-[#9CC9DA] bg-[#E3F1F7] p-[22px]">
                                 <div className="grid gap-x-5 gap-y-[18px] md:grid-cols-12">
@@ -753,14 +844,29 @@ export default function CrearVisitaExtensionismo() {
                         >
                             <div className="grid gap-x-5 gap-y-[18px] md:grid-cols-12">
                                 <Field
-                                    label="Nombre del usuario"
+                                    label="Nombres"
                                     required
-                                    className="md:col-span-12"
+                                    className="md:col-span-6"
                                 >
                                     <FieldControl
                                         icon={UserRound}
-                                        placeholder="Ingrese el nombre completo"
+                                        placeholder="Ingrese los nombres"
+                                        onChange={(event) => { identidadProductorModificadaRef.current = true; setProductorSeleccionado(null); buscarProductor(event.target.value); }}
                                     />
+                                </Field>
+                                <Field
+                                    label="Apellidos"
+                                    required
+                                    className="md:col-span-6"
+                                >
+                                    <FieldControl
+                                        icon={UserRound}
+                                        placeholder="Ingrese los apellidos"
+                                        onChange={(event) => { identidadProductorModificadaRef.current = true; setProductorSeleccionado(null); buscarProductor(event.target.value); }}
+                                    />
+                                </Field>
+                                <Field label="Tipo de documento" name="tipo_documento" required className="md:col-span-4">
+                                    <SelectField icon={FileText} options={[{ value: 'Cédula de ciudadanía', label: 'Cédula de ciudadanía' }, { value: 'Tarjeta de identidad', label: 'Tarjeta de identidad' }, { value: 'Cédula de extranjería', label: 'Cédula de extranjería' }, { value: 'Pasaporte', label: 'Pasaporte' }]} />
                                 </Field>
                                 <Field
                                     label="Número de cédula"
@@ -771,6 +877,7 @@ export default function CrearVisitaExtensionismo() {
                                         icon={FileText}
                                         inputMode="numeric"
                                         placeholder="Ingrese el número de cédula"
+                                        onChange={(event) => { identidadProductorModificadaRef.current = true; setProductorSeleccionado(null); setPredioExistente(''); buscarProductor(event.target.value); }}
                                     />
                                 </Field>
                                 <Field
@@ -798,6 +905,13 @@ export default function CrearVisitaExtensionismo() {
                                         />
                                     </div>
                                 </div>
+                                {(buscandoProductor || errorBusqueda || resultadosProductor.length > 0) && (
+                                    <div className="rounded-[16px] border border-[#B5CAAE] bg-[#F7FBF4] p-3 md:col-span-12">
+                                        {buscandoProductor && <p className="text-sm text-[#3E5547]">Buscando productor…</p>}
+                                        {errorBusqueda && <p className="text-sm text-[#B93A0B]">{errorBusqueda}</p>}
+                                        {resultadosProductor.map((productor) => <button key={productor.productor} type="button" onClick={() => seleccionarProductor(productor)} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-[#10281D] hover:bg-[#E4F1DD]">{productor.nombres} {productor.apellidos} · {productor.tipo_documento} {productor.numero_documento}</button>)}
+                                    </div>
+                                )}
                             </div>
                         </SectionCard>
 
@@ -817,7 +931,7 @@ export default function CrearVisitaExtensionismo() {
                                 >
                                     <SelectField
                                         icon={Leaf}
-                                        options={[]}
+                                        options={lineasProductivas.map((item) => ({ value: String(item.linea_productiva), label: String(item.nombre) }))}
                                         value={primaryLine}
                                         onValueChange={setPrimaryLine}
                                     />
@@ -827,13 +941,13 @@ export default function CrearVisitaExtensionismo() {
                                     required
                                     className="md:col-span-4"
                                 >
-                                    <SelectField icon={Layers} options={[]} />
+                                    <SelectField icon={Layers} options={especiesProductivas.filter((item) => !primaryLine || String(item.linea_productiva) === primaryLine).map((item) => ({ value: String(item.especie_productiva), label: String(item.nombre) }))} />
                                 </Field>
                                 <Field
                                     label="Línea productiva secundaria"
                                     className="md:col-span-4"
                                 >
-                                    <SelectField icon={Leaf} options={[]} />
+                                    <SelectField icon={Leaf} options={lineasProductivas.map((item) => ({ value: String(item.linea_productiva), label: String(item.nombre) }))} />
                                 </Field>
                                 <Field
                                     label="Número de animales"
@@ -872,26 +986,7 @@ export default function CrearVisitaExtensionismo() {
                                 tone="coral"
                             >
                                 <div className="flex flex-wrap gap-[10px]">
-                                    <CheckOption>Mujer rural</CheckOption>
-                                    <CheckOption>
-                                        Madre cabeza de hogar
-                                    </CheckOption>
-                                    <CheckOption>
-                                        Adulto mayor (60 años o más)
-                                    </CheckOption>
-                                    <CheckOption>
-                                        Adultez (29 a 59 años)
-                                    </CheckOption>
-                                    <CheckOption>
-                                        Juventud (14 a 28 años)
-                                    </CheckOption>
-                                    <CheckOption>Afrocolombianos</CheckOption>
-                                    <CheckOption>Rrom o gitano</CheckOption>
-                                    <CheckOption>Raizales</CheckOption>
-                                    <CheckOption>Indígenas</CheckOption>
-                                    <CheckOption>Comunidad LGTBI</CheckOption>
-                                    <CheckOption>Discapacidad</CheckOption>
-                                    <CheckOption>Comunidad Negra</CheckOption>
+                                    {enfoquesPoblacionales.map((enfoque) => <CheckOption key={String(enfoque.enfoque_poblacional)} value={String(enfoque.enfoque_poblacional)}>{String(enfoque.nombre)}</CheckOption>)}
                                 </div>
                                 <div className="mt-[22px] border-t-2 border-dashed border-[#B5CAAE]" />
                                 <div className="mt-[18px] grid gap-x-5 gap-y-[18px] md:grid-cols-12">
@@ -901,7 +996,7 @@ export default function CrearVisitaExtensionismo() {
                                     >
                                         <SelectField options={[]} />
                                     </Field>
-                                    <CheckOption className="w-full rounded-[18px] md:col-span-6">
+                                    <CheckOption name="victima_conflicto_armado" value="1" className="w-full rounded-[18px] md:col-span-6">
                                         Víctima del conflicto armado
                                     </CheckOption>
                                 </div>
@@ -1019,6 +1114,7 @@ export default function CrearVisitaExtensionismo() {
                                 tone="blue"
                             >
                                 <TextAreaField
+                                    name="diagnostico"
                                     rows={4}
                                     className="min-h-[200px]"
                                     placeholder="Ingrese el diagnóstico de la visita..."
@@ -1033,6 +1129,7 @@ export default function CrearVisitaExtensionismo() {
                                 tone="leaf"
                             >
                                 <TextAreaField
+                                    name="actividades_realizadas"
                                     rows={4}
                                     className="min-h-[200px]"
                                     placeholder="Ingrese las actividades realizadas..."
@@ -1064,6 +1161,7 @@ export default function CrearVisitaExtensionismo() {
                                             </span>
                                             <Field
                                                 label={question}
+                                                name={['principales_proveedores', 'principales_compradores', 'fuentes_consulta'][index]}
                                                 className="min-w-0 flex-1"
                                             >
                                                 <FieldControl placeholder="Ingrese la respuesta…" />
@@ -1081,6 +1179,7 @@ export default function CrearVisitaExtensionismo() {
                                     tone="yellow"
                                 >
                                     <TextAreaField
+                                        name="recomendaciones"
                                         rows={3}
                                         className="min-h-[140px]"
                                         placeholder="Ingrese las recomendaciones..."
@@ -1094,6 +1193,7 @@ export default function CrearVisitaExtensionismo() {
                                     tone="green"
                                 >
                                     <TextAreaField
+                                        name="compromisos"
                                         rows={3}
                                         className="min-h-[140px]"
                                         placeholder="Ingrese los compromisos..."
@@ -1123,6 +1223,7 @@ export default function CrearVisitaExtensionismo() {
                                     </Field>
                                     <Field
                                         label="Número de cédula"
+                                        name="numero_documento_extensionista"
                                         required
                                         className="md:col-span-6"
                                     >
@@ -1193,6 +1294,7 @@ export default function CrearVisitaExtensionismo() {
                                     </Field>
                                     <Field
                                         label="Número de cédula"
+                                        name="numero_documento_usuario"
                                         required
                                         className="md:col-span-5"
                                     >
@@ -1227,13 +1329,21 @@ export default function CrearVisitaExtensionismo() {
                                 </span>
                                 <input
                                     type="file"
+                                    name="fotografias[]"
                                     accept="image/jpeg,image/png"
                                     multiple
-                                    required
                                     onChange={handlePhotoChange}
                                     className="sr-only"
                                 />
                             </label>
+                            {visita?.fotografias && visita.fotografias.length > 0 && (
+                                <div className="mt-3 rounded-[16px] border border-[#B5CAAE] bg-[#F7FBF4] p-4">
+                                    <p className="text-sm font-bold text-[#10281D]">Fotografías existentes</p>
+                                    <ul className="mt-2 list-inside list-disc text-sm text-[#3E5547]">
+                                        {visita.fotografias.map((fotografia, indice) => <li key={`${fotografia.nombre ?? 'fotografia'}-${indice}`}>{fotografia.id ? <a className="font-semibold text-[#17803D] underline" href={`/visitas-extensionismo/${visita.id}/fotografias/${fotografia.id}`} target="_blank" rel="noreferrer">{fotografia.nombre ?? 'Fotografía adjunta'}</a> : (fotografia.nombre ?? 'Fotografía adjunta')}</li>)}
+                                    </ul>
+                                </div>
+                            )}
                             {photoFiles.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
                                     {photoFiles.map((file) => (

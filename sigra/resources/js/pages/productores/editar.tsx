@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import {
@@ -16,18 +16,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { index } from '@/routes/productores';
-import {
-    productoresDirectorioDemostracion,
-    type ProductorDirectorioDemostracion,
-} from './datos-demostracion';
 
 type PageProps = {
     productorId?: string;
+    productor?: ProductorDirectorio | null;
+};
+
+type ProductorDirectorio = {
+    id: string;
+    nombres: string;
+    apellidos: string;
+    nombreCompleto: string;
+    tipoDocumento: string;
+    numeroDocumento: string;
+    telefono: string;
+    fechaNacimiento: string;
+    fechaNacimientoISO: string;
 };
 
 type FormValues = Pick<
-    ProductorDirectorioDemostracion,
-    | 'nombreCompleto'
+    ProductorDirectorio,
+    | 'nombres'
+    | 'apellidos'
     | 'tipoDocumento'
     | 'numeroDocumento'
     | 'telefono'
@@ -93,21 +103,19 @@ function Grupo({
 }
 
 export default function EditarProductor() {
-    const { productorId } = usePage<PageProps>().props;
-    const productor = productoresDirectorioDemostracion.find(
-        (item) => item.id === productorId,
-    );
+    const { productor } = usePage<PageProps>().props;
     const [values, setValues] = useState<FormValues>(() =>
         productor
             ? {
-                  nombreCompleto: productor.nombreCompleto,
+                  nombres: productor.nombres,
+                  apellidos: productor.apellidos,
                   tipoDocumento: productor.tipoDocumento,
                   numeroDocumento: productor.numeroDocumento,
                   telefono: productor.telefono,
                   fechaNacimientoISO: productor.fechaNacimientoISO,
               }
             : {
-                  nombreCompleto: '',
+                  nombres: '', apellidos: '',
                   tipoDocumento: '',
                   numeroDocumento: '',
                   telefono: '',
@@ -122,7 +130,7 @@ export default function EditarProductor() {
         }
 
         setValues({
-            nombreCompleto: productor.nombreCompleto,
+            nombres: productor.nombres, apellidos: productor.apellidos,
             tipoDocumento: productor.tipoDocumento,
             numeroDocumento: productor.numeroDocumento,
             telefono: productor.telefono,
@@ -141,9 +149,7 @@ export default function EditarProductor() {
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setMensaje(
-            'Cambios actualizados únicamente en esta vista de demostración. Se perderán al recargar la página.',
-        );
+        router.put(`/productores/${productor!.id}`, { nombres: values.nombres, apellidos: values.apellidos, tipo_documento: values.tipoDocumento, numero_documento: values.numeroDocumento, telefono: values.telefono, fecha_nacimiento: values.fechaNacimientoISO }, { onSuccess: () => setMensaje('Cambios guardados correctamente.'), onError: () => setMensaje('Revisa los campos indicados antes de guardar.') });
     };
 
     if (!productor) {
@@ -153,8 +159,7 @@ export default function EditarProductor() {
                 <main className="sigra-jakarta sigra-pulido min-w-0 flex-1 bg-[#DCE8D2] px-4 py-5 sm:px-8 sm:py-[26px] xl:px-10 dark:bg-[#14221A]">
                     <div className="mx-auto max-w-[1480px] rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-8 shadow-[0_6px_0_rgba(14,59,42,0.12)] dark:border-[#3E5B46] dark:bg-[#1B2A21]">
                         <p className="text-[16px] text-[#3E5547] dark:text-[#BFD9C5]">
-                            No se encontró el productor de demostración
-                            solicitado.
+                            No se encontró el productor solicitado.
                         </p>
                         <Button
                             asChild
@@ -209,16 +214,16 @@ export default function EditarProductor() {
                     >
                         <div className="flex flex-col gap-4">
                             <Grupo title="Identificación" icon={FileText}>
-                                <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr_1fr]">
+                                <div className="grid gap-5 lg:grid-cols-2">
                                     <Campo
-                                        label="Nombre completo"
+                                        label="Nombres"
                                         icon={UserRound}
                                     >
                                         <Input
-                                            value={values.nombreCompleto}
+                                            value={values.nombres}
                                             onChange={(event) =>
                                                 setValue(
-                                                    'nombreCompleto',
+                                                    'nombres',
                                                     event.target.value,
                                                 )
                                             }
@@ -227,6 +232,9 @@ export default function EditarProductor() {
                                                 'pl-[52px]',
                                             )}
                                         />
+                                    </Campo>
+                                    <Campo label="Apellidos" icon={UserRound}>
+                                        <Input value={values.apellidos} onChange={(event) => setValue('apellidos', event.target.value)} className={cn(inputClassName, 'pl-[52px]')} />
                                     </Campo>
                                     <Campo
                                         label="Tipo de documento"

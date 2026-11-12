@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
 import {
     CalendarDays,
     ChevronLeft,
@@ -19,7 +19,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TrazabilidadModal } from '@/components/trazabilidad-modal';
 import { crear, index } from '@/routes/visitas-extensionismo';
-import { visitasDemostracion } from './datos-demostracion';
+import type {
+    VersionTrazabilidad,
+    VisitaTrazabilidad,
+} from '@/types/trazabilidad';
+
+type PageProps = {
+    visitas?: VisitaTrazabilidad[];
+    historialTrazabilidad?: Record<string, VersionTrazabilidad[]>;
+    filtros?: { buscar?: string; desde?: string; hasta?: string };
+    paginacion?: { paginaActual: number; ultimaPagina: number; total: number };
+    indicadores?: { total: number; borradores: number; veredas: number };
+};
 
 function FiltroSinCatalogo({
     label,
@@ -45,27 +56,35 @@ function FiltroSinCatalogo({
 }
 
 export default function ListadoVisitasExtensionismo() {
-    const [busqueda, setBusqueda] = useState('');
-    const [fechaDesde, setFechaDesde] = useState('');
-    const [fechaHasta, setFechaHasta] = useState('');
-    const [visitaConAccionPendiente, setVisitaConAccionPendiente] = useState<
-        string | null
-    >(null);
-    const [visitaConTrazabilidad, setVisitaConTrazabilidad] = useState<
-        (typeof visitasDemostracion)[number] | null
-    >(null);
+    const { visitas = [], historialTrazabilidad = {}, filtros = {}, paginacion = { paginaActual: 1, ultimaPagina: 1, total: 0 }, indicadores: indicadoresServidor } =
+        usePage<PageProps>().props;
+    const [busqueda, setBusqueda] = useState(filtros.buscar ?? '');
+    const [fechaDesde, setFechaDesde] = useState(filtros.desde ?? '');
+    const [fechaHasta, setFechaHasta] = useState(filtros.hasta ?? '');
+    const primeraConsulta = useRef(true);
+    const [visitaConTrazabilidad, setVisitaConTrazabilidad] =
+        useState<VisitaTrazabilidad | null>(null);
     const trazabilidadTriggerRef = useRef<HTMLButtonElement | null>(null);
-    const totalVisitas = visitasDemostracion.length;
-    const visitasEnBorrador = visitasDemostracion.filter(
-        (visita) => visita.estado === 'Borrador',
-    ).length;
-    const veredasAtendidas = new Set(
-        visitasDemostracion
-            .map((visita) =>
-                visita.vereda.trim().replace(/\s+/g, ' ').toLocaleLowerCase(),
-            )
-            .filter(Boolean),
-    ).size;
+    useEffect(() => {
+        if (primeraConsulta.current) {
+            primeraConsulta.current = false;
+            return;
+        }
+        const temporizador = window.setTimeout(() => {
+            router.get(index.url({ query: { buscar: busqueda || undefined, desde: fechaDesde || undefined, hasta: fechaHasta || undefined } }), {}, { preserveState: true, preserveScroll: true, replace: true });
+        }, 350);
+        return () => window.clearTimeout(temporizador);
+    }, [busqueda, fechaDesde, fechaHasta]);
+
+    useEffect(() => {
+        setBusqueda(filtros.buscar ?? '');
+        setFechaDesde(filtros.desde ?? '');
+        setFechaHasta(filtros.hasta ?? '');
+    }, [filtros.buscar, filtros.desde, filtros.hasta]);
+
+    const totalVisitas = indicadoresServidor?.total ?? paginacion.total;
+    const visitasEnBorrador = indicadoresServidor?.borradores ?? 0;
+    const veredasAtendidas = indicadoresServidor?.veredas ?? 0;
     const indicadores = [
         {
             title: 'Resumen de visitas',
@@ -94,6 +113,10 @@ export default function ListadoVisitasExtensionismo() {
         setBusqueda('');
         setFechaDesde('');
         setFechaHasta('');
+    };
+
+    const cambiarPagina = (pagina: number) => {
+        router.get(index.url({ query: { buscar: busqueda || undefined, desde: fechaDesde || undefined, hasta: fechaHasta || undefined, page: pagina } }), {}, { preserveState: true, preserveScroll: true, replace: true });
     };
 
     return (
@@ -276,168 +299,168 @@ export default function ListadoVisitasExtensionismo() {
                                     Visitas registradas
                                 </h2>
                                 <p className="mt-1 text-[15px] text-[#3E5547]">
-                                    Visualización temporal de tarjetas mientras
-                                    se integra la información real.
+                                    Las visitas guardadas aparecerán aquí.
                                 </p>
                             </div>
-                            <span className="inline-flex w-fit items-center rounded-full bg-[#FFF4CC] px-4 py-2 text-[15px] font-extrabold text-[#665000]">
-                                Datos de demostración
-                            </span>
                         </div>
 
-                        <div className="mt-6 grid gap-5 xl:grid-cols-2">
-                            {visitasDemostracion.map((visita) => (
-                                <article
-                                    key={visita.numero}
-                                    className="rounded-[24px] border-[1.5px] border-[#B5CAAE] bg-[#F7FBF4] p-5 shadow-[0_4px_0_rgba(14,59,42,0.1),0_18px_26px_-22px_rgba(14,59,42,0.5)] sm:p-6"
-                                >
-                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="min-w-0">
-                                            <p className="text-[15px] font-semibold text-[#3E5547]">
-                                                Número de visita
-                                            </p>
-                                            <h3 className="mt-1 text-[20px] font-extrabold text-[#10281D]">
-                                                {visita.numero}
-                                            </h3>
+                        {visitas.length > 0 ? (
+                            <div className="mt-6 grid gap-5 xl:grid-cols-2">
+                                {visitas.map((visita) => (
+                                    <article
+                                        key={visita.numero}
+                                        className="rounded-[24px] border-[1.5px] border-[#B5CAAE] bg-[#F7FBF4] p-5 shadow-[0_4px_0_rgba(14,59,42,0.1),0_18px_26px_-22px_rgba(14,59,42,0.5)] sm:p-6"
+                                    >
+                                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0">
+                                                <p className="text-[15px] font-semibold text-[#3E5547]">
+                                                    Número de visita
+                                                </p>
+                                                <h3 className="mt-1 text-[20px] font-extrabold text-[#10281D]">
+                                                    {visita.numero}
+                                                </h3>
+                                            </div>
+                                            <span
+                                                className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-[15px] font-extrabold ${
+                                                    visita.estado ===
+                                                    'Completada'
+                                                        ? 'bg-[#E4F1DD] text-[#2F6A45]'
+                                                        : 'bg-[#FFF4CC] text-[#665000]'
+                                                }`}
+                                            >
+                                                {visita.estado}
+                                            </span>
                                         </div>
-                                        <span
-                                            className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-[15px] font-extrabold ${
-                                                visita.estado === 'Completada'
-                                                    ? 'bg-[#E4F1DD] text-[#2F6A45]'
-                                                    : 'bg-[#FFF4CC] text-[#665000]'
-                                            }`}
-                                        >
-                                            {visita.estado}
-                                        </span>
-                                    </div>
 
-                                    <dl className="mt-6 grid gap-5 sm:grid-cols-2">
-                                        <div>
-                                            <dt className="text-[15px] font-semibold text-[#3E5547]">
-                                                Productor
-                                            </dt>
-                                            <dd className="mt-1 text-[16px] font-bold text-[#10281D]">
-                                                {visita.productor}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-[15px] font-semibold text-[#3E5547]">
-                                                Extensionista
-                                            </dt>
-                                            <dd className="mt-1 text-[16px] font-bold text-[#10281D]">
-                                                {visita.extensionista}
-                                            </dd>
-                                        </div>
-                                        <div className="flex items-start gap-3">
-                                            <CalendarDays className="mt-0.5 size-5 shrink-0 text-[#2F6A45]" />
+                                        <dl className="mt-6 grid gap-5 sm:grid-cols-2">
                                             <div>
                                                 <dt className="text-[15px] font-semibold text-[#3E5547]">
-                                                    Fecha
+                                                    Productor
                                                 </dt>
                                                 <dd className="mt-1 text-[16px] font-bold text-[#10281D]">
-                                                    {visita.fecha}
+                                                    {visita.productor}
                                                 </dd>
                                             </div>
-                                        </div>
-                                        <div className="flex items-start gap-3">
-                                            <MapPin className="mt-0.5 size-5 shrink-0 text-[#2F6A45]" />
                                             <div>
                                                 <dt className="text-[15px] font-semibold text-[#3E5547]">
-                                                    Vereda
+                                                    Extensionista
                                                 </dt>
                                                 <dd className="mt-1 text-[16px] font-bold text-[#10281D]">
-                                                    {visita.vereda}
+                                                    {visita.extensionista}
                                                 </dd>
                                             </div>
+                                            <div className="flex items-start gap-3">
+                                                <CalendarDays className="mt-0.5 size-5 shrink-0 text-[#2F6A45]" />
+                                                <div>
+                                                    <dt className="text-[15px] font-semibold text-[#3E5547]">
+                                                        Fecha
+                                                    </dt>
+                                                    <dd className="mt-1 text-[16px] font-bold text-[#10281D]">
+                                                        {visita.fecha}
+                                                    </dd>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <MapPin className="mt-0.5 size-5 shrink-0 text-[#2F6A45]" />
+                                                <div>
+                                                    <dt className="text-[15px] font-semibold text-[#3E5547]">
+                                                        Vereda
+                                                    </dt>
+                                                    <dd className="mt-1 text-[16px] font-bold text-[#10281D]">
+                                                        {visita.vereda}
+                                                    </dd>
+                                                </div>
+                                            </div>
+                                        </dl>
+
+                                        <div className="mt-6 flex flex-wrap gap-3 border-t-2 border-dashed border-[#B5CAAE] pt-5">
+                                            <Button
+                                                asChild
+                                                className="min-h-11 rounded-[14px] bg-[#B45309] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#7F3605] hover:bg-[#92400E] focus-visible:ring-[4px] focus-visible:ring-[#B45309]/35"
+                                            >
+                                                <Link href={`/visitas-extensionismo/${visita.numero}/editar`}><Pencil className="size-[18px]" />Editar</Link>
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                disabled
+                                                className="min-h-11 rounded-[14px] bg-[#DC2626] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#B91C1C] hover:bg-[#B91C1C] focus-visible:ring-[4px] focus-visible:ring-[#DC2626]/35"
+                                            >
+                                                <FileText className="size-[18px]" />
+                                                PDF
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    trazabilidadTriggerRef.current =
+                                                        event.currentTarget;
+                                                    setVisitaConTrazabilidad(
+                                                        visita,
+                                                    );
+                                                }}
+                                                className="min-h-11 rounded-[14px] bg-[#2563EB] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#1747A5] hover:bg-[#1D4ED8] focus-visible:ring-[4px] focus-visible:ring-[#2563EB]/35"
+                                            >
+                                                <History className="size-[18px]" />
+                                                Trazabilidad
+                                            </Button>
                                         </div>
-                                    </dl>
-
-                                    <div className="mt-6 flex flex-wrap gap-3 border-t-2 border-dashed border-[#B5CAAE] pt-5">
-                                        <Button
-                                            type="button"
-                                            onClick={() =>
-                                                setVisitaConAccionPendiente(
-                                                    visita.numero,
-                                                )
-                                            }
-                                            className="min-h-11 rounded-[14px] bg-[#B45309] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#7F3605] hover:bg-[#92400E] focus-visible:ring-[4px] focus-visible:ring-[#B45309]/35"
-                                        >
-                                            <Pencil className="size-[18px]" />
-                                            Editar
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            onClick={() =>
-                                                setVisitaConAccionPendiente(
-                                                    visita.numero,
-                                                )
-                                            }
-                                            className="min-h-11 rounded-[14px] bg-[#DC2626] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#B91C1C] hover:bg-[#B91C1C] focus-visible:ring-[4px] focus-visible:ring-[#DC2626]/35"
-                                        >
-                                            <FileText className="size-[18px]" />
-                                            PDF
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            onClick={(event) => {
-                                                trazabilidadTriggerRef.current =
-                                                    event.currentTarget;
-                                                setVisitaConTrazabilidad(
-                                                    visita,
-                                                );
-                                            }}
-                                            className="min-h-11 rounded-[14px] bg-[#2563EB] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#1747A5] hover:bg-[#1D4ED8] focus-visible:ring-[4px] focus-visible:ring-[#2563EB]/35"
-                                        >
-                                            <History className="size-[18px]" />
-                                            Trazabilidad
-                                        </Button>
-                                    </div>
-                                    {visitaConAccionPendiente ===
-                                        visita.numero && (
-                                        <p
-                                            role="status"
-                                            className="mt-4 text-[15px] font-semibold text-[#3E5547]"
-                                        >
-                                            Funcionalidad pendiente
-                                        </p>
-                                    )}
-                                </article>
-                            ))}
-                        </div>
-
-                        <div className="mt-6 flex flex-col gap-4 border-t-2 border-dashed border-[#B5CAAE] pt-5 sm:flex-row sm:items-center sm:justify-between">
-                            <p className="text-[15px] text-[#607665]">
-                                Datos de demostración: sin páginas adicionales
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    type="button"
-                                    disabled
-                                    variant="outline"
-                                    aria-label="Página anterior"
-                                    className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
-                                >
-                                    <ChevronLeft className="size-5" />
-                                </Button>
-                                <span className="flex min-h-11 items-center rounded-[14px] border-[1.5px] border-[#B5CAAE] bg-[#F7FBF4] px-4 text-[15px] font-bold text-[#607665]">
-                                    —
-                                </span>
-                                <Button
-                                    type="button"
-                                    disabled
-                                    variant="outline"
-                                    aria-label="Página siguiente"
-                                    className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
-                                >
-                                    <ChevronRight className="size-5" />
-                                </Button>
+                                    </article>
+                                ))}
                             </div>
-                        </div>
+                        ) : (
+                            <div className="mt-6 rounded-2xl border border-dashed border-[#B5CAAE] bg-[#F7FBF4] px-5 py-8 text-center">
+                                <p className="font-semibold text-[#10281D]">
+                                    No hay visitas registradas.
+                                </p>
+                                <p className="mt-1 text-[15px] text-[#607665]">
+                                    Las visitas guardadas aparecerán aquí.
+                                </p>
+                            </div>
+                        )}
+
+                        {visitas.length > 0 && (
+                            <div className="mt-6 flex flex-col gap-4 border-t-2 border-dashed border-[#B5CAAE] pt-5 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-[15px] text-[#607665]">
+                                    Mostrando {visitas.length} de {paginacion.total} visitas
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        disabled={paginacion.paginaActual <= 1}
+                                        onClick={() => cambiarPagina(paginacion.paginaActual - 1)}
+                                        variant="outline"
+                                        aria-label="Página anterior"
+                                        className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
+                                    >
+                                        <ChevronLeft className="size-5" />
+                                    </Button>
+                                    <span className="flex min-h-11 items-center rounded-[14px] border-[1.5px] border-[#B5CAAE] bg-[#F7FBF4] px-4 text-[15px] font-bold text-[#607665]">
+                                        Página {paginacion.paginaActual} de {paginacion.ultimaPagina}
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        disabled={paginacion.paginaActual >= paginacion.ultimaPagina}
+                                        onClick={() => cambiarPagina(paginacion.paginaActual + 1)}
+                                        variant="outline"
+                                        aria-label="Página siguiente"
+                                        className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
+                                    >
+                                        <ChevronRight className="size-5" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </section>
                 </div>
             </main>
             <TrazabilidadModal
                 visita={visitaConTrazabilidad}
+                historial={
+                    visitaConTrazabilidad
+                        ? (historialTrazabilidad[
+                              visitaConTrazabilidad.numero
+                          ] ?? [])
+                        : []
+                }
                 open={visitaConTrazabilidad !== null}
                 returnFocusRef={trazabilidadTriggerRef}
                 onOpenChange={(open) => {

@@ -1,0 +1,25 @@
+linea_productiva|codigo|nombre|grupo
+CAFE|CAFE|Café|general
+CACAO|CACAO|Cacao|general
+PLATANO_BANANO|PLATANO|Plátano|general
+MAIZ|MAIZ|Maíz|general
+SORGO|SORGO|Sorgo|general
+ARROZ|ARROZ|Arroz|general
+YUCA|YUCA|Yuca|general
+CANA|CANA|Caña|general
+PALMA_ACEITE|PALMA_ACEITE|Palma de aceite|general
+PINA|PINA|Piña|general
+FRUTICULTURA|MANGO|Mango|frutal
+FRUTICULTURA|MARACUYA|Maracuyá|frutal
+FRUTICULTURA|PAPAYA|Papaya|frutal
+FRUTICULTURA|GUAYABA|Guayaba|frutal
+FRUTICULTURA|GUANABANA|Guanábana|frutal
+FRUTICULTURA|AGUACATE|Aguacate|frutal
+PLATANO_BANANO|BANANO|Banano|frutal
+FRUTICULTURA|PATILLA|Patilla|frutal
+FRUTICULTURA|ZAPOTE|Zapote|frutal
+FRUTICULTURA|MAMONCILLO|Mamoncillo|frutal
+CITRICULTURA|LIMON|Limón|citrico
+CITRICULTURA|LIMA|Lima|citrico
+CITRICULTURA|NARANJA|Naranja|citrico
+CITRICULTURA|MANDARINA|Mandarina|citrico

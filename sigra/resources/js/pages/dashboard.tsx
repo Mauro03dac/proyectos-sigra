@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import {
     CalendarDays,
@@ -17,15 +17,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { dashboard } from '@/routes';
 import { crear } from '@/routes/visitas-extensionismo';
-import { visitasDemostracion } from './visitas-extensionismo/datos-demostracion';
 
-const tipoVisitaDemostracion = 'Visita de extensionismo';
+type RegistroDashboard = {
+    numero: string;
+    productor: string;
+    extensionista: string;
+    vereda: string;
+    estado: string;
+    fecha: string;
+    tipoVisita: string;
+    fechaParaFiltro: string;
+};
 
-function fechaParaFiltro(fecha: string) {
-    const [dia, mes, ano] = fecha.split('/');
-
-    return `${ano}-${mes}-${dia}`;
-}
+type PageProps = {
+    registros?: RegistroDashboard[];
+};
 
 function CampoSeleccion({
     label,
@@ -67,6 +73,7 @@ function CampoSeleccion({
 }
 
 export default function Dashboard() {
+    const { registros: registrosDisponibles = [] } = usePage<PageProps>().props;
     const [busqueda, setBusqueda] = useState('');
     const [tipoVisita, setTipoVisita] = useState('');
     const [extensionista, setExtensionista] = useState('');
@@ -78,11 +85,6 @@ export default function Dashboard() {
         string | null
     >(null);
 
-    const registrosDisponibles = visitasDemostracion.map((visita) => ({
-        ...visita,
-        tipoVisita: tipoVisitaDemostracion,
-        fechaParaFiltro: fechaParaFiltro(visita.fecha),
-    }));
     const tiposVisita = [
         ...new Set(registrosDisponibles.map((registro) => registro.tipoVisita)),
     ];
@@ -130,22 +132,22 @@ export default function Dashboard() {
     const indicadores = [
         {
             title: 'Visitas de extensionismo',
-            value: visitasDemostracion.length,
+            value: 0,
             description: 'Visitas registradas',
             icon: ClipboardList,
             iconClassName: 'bg-[#17803D] text-white',
         },
         {
             title: 'Registro RUEA',
-            value: '—',
-            description: 'Sin datos integrados',
+            value: 0,
+            description: 'Registros RUEA',
             icon: FileText,
             iconClassName: 'bg-[#1B86B5] text-white',
         },
         {
             title: 'Productores registrados',
-            value: '—',
-            description: 'Sin datos integrados',
+            value: 0,
+            description: 'Total de productores',
             icon: UsersRound,
             iconClassName: 'bg-[#FFC933] text-[#3A2A00]',
         },
@@ -357,9 +359,6 @@ export default function Dashboard() {
                                     asociados en SIGRA.
                                 </p>
                             </div>
-                            <span className="inline-flex w-fit items-center rounded-full bg-[#FFF4CC] px-4 py-2 text-[15px] font-extrabold text-[#665000]">
-                                Datos de demostración
-                            </span>
                         </div>
                         {registrosFiltrados.length > 0 ? (
                             <div className="mt-6 grid gap-5 xl:grid-cols-2">
@@ -472,13 +471,10 @@ export default function Dashboard() {
                         ) : (
                             <div className="mt-6 rounded-[24px] border-[2px] border-dashed border-[#B5CAAE] bg-[#F7FBF4] px-6 py-10 text-center">
                                 <h3 className="text-[20px] font-extrabold text-[#10281D]">
-                                    No hay registros que coincidan con los
-                                    filtros
+                                    No hay registros disponibles.
                                 </h3>
                                 <p className="mt-2 text-[16px] leading-[1.5] text-[#3E5547]">
-                                    Ajusta los criterios de búsqueda o limpia
-                                    los filtros para ver los datos de
-                                    demostración.
+                                    Los registros reales aparecerán aquí.
                                 </p>
                             </div>
                         )}
