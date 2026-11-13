@@ -17,12 +17,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { DetalleCambiosTrazabilidad } from '@/components/detalle-cambios-trazabilidad';
 import type {
+    RegistroTrazabilidad,
     VersionTrazabilidad,
-    VisitaTrazabilidad,
 } from '@/types/trazabilidad';
 
 type Props = {
-    visita: VisitaTrazabilidad | null;
+    registro: RegistroTrazabilidad | null;
     historial?: VersionTrazabilidad[];
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -30,7 +30,7 @@ type Props = {
 };
 
 export function TrazabilidadModal({
-    visita,
+    registro,
     historial = [],
     open,
     onOpenChange,
@@ -42,14 +42,16 @@ export function TrazabilidadModal({
     const versionesOrdenadas = [...historial].sort(
         (versionA, versionB) => versionB.numero - versionA.numero,
     );
+    const nombreEntidad = registro?.entidad === 'productor' ? 'productor' : 'visita';
+    const preposicionEntidad = registro?.entidad === 'productor' ? 'del productor' : 'de la visita';
 
     useEffect(() => {
-        if (!open || !visita) {
+        if (!open || !registro) {
             return;
         }
 
         setVersionesAbiertas(new Set());
-    }, [open, visita?.numero]);
+    }, [open, registro?.entidad, registro?.numero]);
 
     const alternarVersion = (versionId: string) => {
         setVersionesAbiertas((versionesActuales) => {
@@ -66,8 +68,8 @@ export function TrazabilidadModal({
     };
 
     return (
-        <Dialog open={open && Boolean(visita)} onOpenChange={onOpenChange}>
-            {visita && (
+        <Dialog open={open && Boolean(registro)} onOpenChange={onOpenChange}>
+            {registro && (
                 <DialogContent
                     onCloseAutoFocus={(event) => {
                         event.preventDefault();
@@ -82,11 +84,11 @@ export function TrazabilidadModal({
                             </span>
                             <div className="min-w-0">
                                 <DialogTitle className="text-xl font-extrabold text-foreground sm:text-2xl">
-                                    Trazabilidad de la visita
+                                    Trazabilidad {preposicionEntidad}
                                 </DialogTitle>
                                 <DialogDescription className="mt-1 text-sm leading-6 text-muted-foreground">
-                                    Historial de registros y ediciones del
-                                    formulario MI10-F58.
+                                    Historial real de registros y ediciones del{' '}
+                                    {nombreEntidad}.
                                 </DialogDescription>
                             </div>
                         </div>
@@ -94,20 +96,20 @@ export function TrazabilidadModal({
                         <div className="mt-5 grid min-w-0 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
                             <div className="min-w-0">
                                 <p className="text-xs font-bold tracking-wide text-[#52645A] uppercase dark:text-[#C4D5C8]">
-                                    Número de visita
+                                    Número de {nombreEntidad}
                                 </p>
                                 <p className="mt-1 font-extrabold break-words text-foreground">
-                                    {visita.numero}
+                                    {registro.numero}
                                 </p>
                             </div>
                             <div className="flex min-w-0 items-start gap-2">
                                 <UserRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                                 <div className="min-w-0">
                                     <p className="text-xs font-bold tracking-wide text-[#52645A] uppercase dark:text-[#C4D5C8]">
-                                        Productor
+                                    {registro.entidad === 'productor' ? 'Nombre' : 'Productor'}
                                     </p>
                                     <p className="mt-1 font-semibold break-words text-foreground">
-                                        {visita.productor}
+                                        {registro.productor}
                                     </p>
                                 </div>
                             </div>
@@ -115,10 +117,10 @@ export function TrazabilidadModal({
                                 <CalendarDays className="mt-0.5 size-4 shrink-0 text-[#52645A] dark:text-[#C4D5C8]" />
                                 <div className="min-w-0">
                                     <p className="text-xs font-bold tracking-wide text-[#52645A] uppercase dark:text-[#C4D5C8]">
-                                        Fecha de visita
+                                        {registro.entidad === 'productor' ? 'Fecha de registro' : 'Fecha de visita'}
                                     </p>
                                     <p className="mt-1 font-semibold break-words text-foreground">
-                                        {visita.fecha}
+                                        {registro.fecha}
                                     </p>
                                 </div>
                             </div>
@@ -126,10 +128,10 @@ export function TrazabilidadModal({
                                 <UserRound className="mt-0.5 size-4 shrink-0 text-[#52645A] dark:text-[#C4D5C8]" />
                                 <div className="min-w-0">
                                     <p className="text-xs font-bold tracking-wide text-[#52645A] uppercase dark:text-[#C4D5C8]">
-                                        Extensionista
+                                        {registro.entidad === 'productor' ? 'Usuario responsable' : 'Extensionista'}
                                     </p>
                                     <p className="mt-1 font-semibold break-words text-foreground">
-                                        {visita.extensionista}
+                                        {registro.extensionista}
                                     </p>
                                 </div>
                             </div>
@@ -139,7 +141,7 @@ export function TrazabilidadModal({
                                 </p>
                                 <p className="mt-1 inline-flex items-center gap-1.5 font-extrabold text-[#17803D] dark:text-[#8ED19B]">
                                     <span className="size-2 rounded-full bg-current" />
-                                    {visita.estado}
+                                    {registro.estado}
                                 </p>
                             </div>
                         </div>

@@ -11,15 +11,11 @@ class EnfoquePoblacional extends Model
 
     protected $primaryKey = 'enfoque_poblacional';
 
-    public const CREATED_AT = 'fecha_creacion';
-
-    public const UPDATED_AT = 'fecha_actualizacion';
-
     protected $fillable = ['codigo', 'nombre', 'activo'];
 
     protected function casts(): array
     {
-        return ['activo' => 'boolean', 'fecha_creacion' => 'datetime', 'fecha_actualizacion' => 'datetime'];
+        return ['activo' => 'boolean'];
     }
 
     /** @return BelongsToMany<VisitaExtensionismo, $this> */

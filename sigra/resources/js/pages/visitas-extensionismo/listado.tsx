@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { EstadoVisitaBadge } from '@/components/estado-visita-badge';
 import { TrazabilidadModal } from '@/components/trazabilidad-modal';
 import { crear, index } from '@/routes/visitas-extensionismo';
 import type {
@@ -56,8 +57,13 @@ function FiltroSinCatalogo({
 }
 
 export default function ListadoVisitasExtensionismo() {
-    const { visitas = [], historialTrazabilidad = {}, filtros = {}, paginacion = { paginaActual: 1, ultimaPagina: 1, total: 0 }, indicadores: indicadoresServidor } =
-        usePage<PageProps>().props;
+    const {
+        visitas = [],
+        historialTrazabilidad = {},
+        filtros = {},
+        paginacion = { paginaActual: 1, ultimaPagina: 1, total: 0 },
+        indicadores: indicadoresServidor,
+    } = usePage<PageProps>().props;
     const [busqueda, setBusqueda] = useState(filtros.buscar ?? '');
     const [fechaDesde, setFechaDesde] = useState(filtros.desde ?? '');
     const [fechaHasta, setFechaHasta] = useState(filtros.hasta ?? '');
@@ -71,7 +77,17 @@ export default function ListadoVisitasExtensionismo() {
             return;
         }
         const temporizador = window.setTimeout(() => {
-            router.get(index.url({ query: { buscar: busqueda || undefined, desde: fechaDesde || undefined, hasta: fechaHasta || undefined } }), {}, { preserveState: true, preserveScroll: true, replace: true });
+            router.get(
+                index.url({
+                    query: {
+                        buscar: busqueda || undefined,
+                        desde: fechaDesde || undefined,
+                        hasta: fechaHasta || undefined,
+                    },
+                }),
+                {},
+                { preserveState: true, preserveScroll: true, replace: true },
+            );
         }, 350);
         return () => window.clearTimeout(temporizador);
     }, [busqueda, fechaDesde, fechaHasta]);
@@ -116,7 +132,18 @@ export default function ListadoVisitasExtensionismo() {
     };
 
     const cambiarPagina = (pagina: number) => {
-        router.get(index.url({ query: { buscar: busqueda || undefined, desde: fechaDesde || undefined, hasta: fechaHasta || undefined, page: pagina } }), {}, { preserveState: true, preserveScroll: true, replace: true });
+        router.get(
+            index.url({
+                query: {
+                    buscar: busqueda || undefined,
+                    desde: fechaDesde || undefined,
+                    hasta: fechaHasta || undefined,
+                    page: pagina,
+                },
+            }),
+            {},
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
     };
 
     return (
@@ -320,16 +347,10 @@ export default function ListadoVisitasExtensionismo() {
                                                     {visita.numero}
                                                 </h3>
                                             </div>
-                                            <span
-                                                className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-[15px] font-extrabold ${
-                                                    visita.estado ===
-                                                    'Completada'
-                                                        ? 'bg-[#E4F1DD] text-[#2F6A45]'
-                                                        : 'bg-[#FFF4CC] text-[#665000]'
-                                                }`}
-                                            >
-                                                {visita.estado}
-                                            </span>
+                                            <EstadoVisitaBadge
+                                                estado={visita.estadoReal ?? ''}
+                                                etiqueta={visita.estado}
+                                            />
                                         </div>
 
                                         <dl className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -378,7 +399,12 @@ export default function ListadoVisitasExtensionismo() {
                                                 asChild
                                                 className="min-h-11 rounded-[14px] bg-[#B45309] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#7F3605] hover:bg-[#92400E] focus-visible:ring-[4px] focus-visible:ring-[#B45309]/35"
                                             >
-                                                <Link href={`/visitas-extensionismo/${visita.numero}/editar`}><Pencil className="size-[18px]" />Editar</Link>
+                                                <Link
+                                                    href={`/visitas-extensionismo/${visita.numero}/editar`}
+                                                >
+                                                    <Pencil className="size-[18px]" />
+                                                    Editar
+                                                </Link>
                                             </Button>
                                             <Button
                                                 type="button"
@@ -420,13 +446,18 @@ export default function ListadoVisitasExtensionismo() {
                         {visitas.length > 0 && (
                             <div className="mt-6 flex flex-col gap-4 border-t-2 border-dashed border-[#B5CAAE] pt-5 sm:flex-row sm:items-center sm:justify-between">
                                 <p className="text-[15px] text-[#607665]">
-                                    Mostrando {visitas.length} de {paginacion.total} visitas
+                                    Mostrando {visitas.length} de{' '}
+                                    {paginacion.total} visitas
                                 </p>
                                 <div className="flex items-center gap-2">
                                     <Button
                                         type="button"
                                         disabled={paginacion.paginaActual <= 1}
-                                        onClick={() => cambiarPagina(paginacion.paginaActual - 1)}
+                                        onClick={() =>
+                                            cambiarPagina(
+                                                paginacion.paginaActual - 1,
+                                            )
+                                        }
                                         variant="outline"
                                         aria-label="Página anterior"
                                         className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
@@ -434,12 +465,20 @@ export default function ListadoVisitasExtensionismo() {
                                         <ChevronLeft className="size-5" />
                                     </Button>
                                     <span className="flex min-h-11 items-center rounded-[14px] border-[1.5px] border-[#B5CAAE] bg-[#F7FBF4] px-4 text-[15px] font-bold text-[#607665]">
-                                        Página {paginacion.paginaActual} de {paginacion.ultimaPagina}
+                                        Página {paginacion.paginaActual} de{' '}
+                                        {paginacion.ultimaPagina}
                                     </span>
                                     <Button
                                         type="button"
-                                        disabled={paginacion.paginaActual >= paginacion.ultimaPagina}
-                                        onClick={() => cambiarPagina(paginacion.paginaActual + 1)}
+                                        disabled={
+                                            paginacion.paginaActual >=
+                                            paginacion.ultimaPagina
+                                        }
+                                        onClick={() =>
+                                            cambiarPagina(
+                                                paginacion.paginaActual + 1,
+                                            )
+                                        }
                                         variant="outline"
                                         aria-label="Página siguiente"
                                         className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
@@ -453,7 +492,7 @@ export default function ListadoVisitasExtensionismo() {
                 </div>
             </main>
             <TrazabilidadModal
-                visita={visitaConTrazabilidad}
+                registro={visitaConTrazabilidad}
                 historial={
                     visitaConTrazabilidad
                         ? (historialTrazabilidad[

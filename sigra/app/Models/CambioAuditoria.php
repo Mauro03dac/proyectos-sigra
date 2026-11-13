@@ -11,16 +11,7 @@ class CambioAuditoria extends Model
 
     protected $primaryKey = 'cambio_auditoria';
 
-    public const CREATED_AT = 'fecha_creacion';
-
-    public const UPDATED_AT = null;
-
     protected $fillable = ['version_auditoria', 'campo', 'valor_anterior', 'valor_nuevo'];
-
-    protected function casts(): array
-    {
-        return ['fecha_creacion' => 'datetime'];
-    }
 
     /** @return BelongsTo<VersionAuditoria, $this> */
     public function versionAuditoria(): BelongsTo

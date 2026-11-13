@@ -12,15 +12,11 @@ class VersionAuditoria extends Model
 
     protected $primaryKey = 'version_auditoria';
 
-    public const CREATED_AT = 'fecha_creacion';
-
-    public const UPDATED_AT = null;
-
     protected $fillable = ['entidad', 'registro', 'numero_version', 'accion', 'usuario'];
 
     protected function casts(): array
     {
-        return ['numero_version' => 'integer', 'fecha_creacion' => 'datetime'];
+        return ['numero_version' => 'integer'];
     }
 
     /** @return BelongsTo<User, $this> */

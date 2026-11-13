@@ -20,9 +20,11 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { FormularioHeader } from '@/components/formulario-header';
+import { FormularioSeccionesNav } from '@/components/formulario-secciones-nav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SigraSelect } from '@/components/ui/sigra-select';
 import { cn } from '@/lib/utils';
 import { crear as crearRUEARoute, index } from '@/routes/registro-ruea';
 import {
@@ -108,6 +110,57 @@ const tonosSeccion: TonoSeccion[] = [
     'yellow',
 ];
 
+const seccionesNavRUEA = [
+    {
+        number: 1,
+        label: 'Información principal',
+        id: 'ruea-informacion-principal',
+        colorClass: 'bg-[#17803D] text-white',
+    },
+    {
+        number: 2,
+        label: 'Capacidades humanas',
+        id: 'capacidades-humanas-tecnicas',
+        colorClass: 'bg-[#1B86B5] text-white',
+    },
+    {
+        number: 3,
+        label: 'Asociatividad',
+        id: 'capacidades-sociales-asociatividad',
+        colorClass: 'bg-[#E0573F] text-white',
+    },
+    {
+        number: 4,
+        label: 'TIC',
+        id: 'informacion-tic',
+        colorClass: 'bg-[#4E9A2B] text-white',
+    },
+    {
+        number: 5,
+        label: 'Recursos naturales',
+        id: 'recursos-naturales',
+        colorClass: 'bg-[#FFC933] text-[#3A2A00]',
+    },
+    {
+        number: 6,
+        label: 'Participación',
+        id: 'habilidades-participacion',
+        colorClass: 'bg-[#17803D] text-white',
+    },
+    {
+        number: 7,
+        label: 'Observaciones',
+        id: 'ruea-observaciones',
+        colorClass: 'bg-[#1B86B5] text-white',
+    },
+    {
+        number: 8,
+        label: 'Cierre',
+        id: 'ruea-cierre',
+        colorClass: 'bg-[#4E9A2B] text-white',
+    },
+] as const;
+
 function CampoTexto({
     etiqueta,
     valor,
@@ -152,15 +205,15 @@ function CampoSeleccion({ etiqueta, valor, onChange }: CampoSeleccionProps) {
             <span className="mb-2 block text-sm font-bold text-[#10281D] dark:text-[#E5F3E8]">
                 {etiqueta}
             </span>
-            <select
+            <SigraSelect
                 id={campoId}
                 name={campoId}
                 value={valor}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-12 w-full rounded-2xl border-[1.5px] border-[#6F9479] bg-[#F7FBF4] px-4 text-[15px] text-[#10281D] transition outline-none hover:border-[#17803D] focus:border-[#17803D] focus:bg-white focus:ring-[4px] focus:ring-[#4E9A2B]/30 dark:border-[#5E8068] dark:bg-[#24382A] dark:text-[#F0FFF3] dark:focus:bg-[#294330]"
-            >
-                <option value="">Catálogo pendiente de integración</option>
-            </select>
+                onValueChange={onChange}
+                icon={MapPin}
+                options={[]}
+                placeholder="Catálogo pendiente de integración"
+            />
         </label>
     );
 }
@@ -227,6 +280,7 @@ function TarjetaSeccion({
     total,
     icono: Icon,
     tono,
+    id,
     children,
 }: {
     numero: number;
@@ -234,10 +288,14 @@ function TarjetaSeccion({
     total: number;
     icono: LucideIcon;
     tono: TonoSeccion;
+    id?: string;
     children: ReactNode;
 }) {
     return (
-        <section className="rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]">
+        <section
+            id={id}
+            className="scroll-mt-6 rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]"
+        >
             <div className="mb-6 flex items-start gap-4 border-b-2 border-dashed border-[#B5CAAE] pb-5 dark:border-[#3E5B46]">
                 <span
                     className={cn(
@@ -411,11 +469,16 @@ export default function CrearRUEA() {
                         badges={[{ label: 'Nuevo registro', tone: 'accent' }]}
                     />
 
+                    <FormularioSeccionesNav sections={seccionesNavRUEA} />
+
                     <form
                         onSubmit={handleSubmit}
                         className="flex flex-col gap-6"
                     >
-                        <section className="rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]">
+                        <section
+                            id="ruea-informacion-principal"
+                            className="scroll-mt-6 rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]"
+                        >
                             <div className="mb-6 flex items-start gap-4 border-b-2 border-dashed border-[#B5CAAE] pb-5 dark:border-[#3E5B46]">
                                 <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[#17803D] text-white shadow-[0_4px_0_#0E3B2A]">
                                     <UserRound className="size-7" />
@@ -657,6 +720,7 @@ export default function CrearRUEA() {
                             return (
                                 <TarjetaSeccion
                                     key={seccion.id}
+                                    id={seccion.id}
                                     numero={seccion.numero}
                                     titulo={seccion.titulo}
                                     total={seccion.preguntas.length}
@@ -705,7 +769,10 @@ export default function CrearRUEA() {
                             );
                         })}
 
-                        <section className="rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]">
+                        <section
+                            id="ruea-observaciones"
+                            className="scroll-mt-6 rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]"
+                        >
                             <div className="mb-5 flex items-center gap-3">
                                 <span className="flex size-11 items-center justify-center rounded-2xl bg-[#1B86B5] text-white shadow-[0_4px_0_#12668A]">
                                     <FileText className="size-5" />
@@ -720,7 +787,10 @@ export default function CrearRUEA() {
                             />
                         </section>
 
-                        <section className="grid gap-5 lg:grid-cols-2">
+                        <section
+                            id="ruea-cierre"
+                            className="grid scroll-mt-6 gap-5 lg:grid-cols-2"
+                        >
                             <BloqueFirma
                                 titulo="Espacio para diligenciar el extensionista"
                                 campos={[

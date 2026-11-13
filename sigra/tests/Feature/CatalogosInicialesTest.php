@@ -20,8 +20,8 @@ class CatalogosInicialesTest extends TestCase
         $this->assertSame(11, DB::table('corregimientos')->count());
         $this->assertSame(99, DB::table('veredas')->count());
         $this->assertSame(12, DB::table('enfoques_poblacionales')->count());
-        $this->assertSame(18, DB::table('lineas_productivas')->count());
-        $this->assertSame(10, DB::table('especies_productivas')->count());
+        $this->assertSame(21, DB::table('lineas_productivas')->count());
+        $this->assertSame(43, DB::table('especies_productivas')->count());
         $this->assertSame(24, DB::table('cultivos')->count());
         $this->assertSame(27, DB::table('razas_pecuarias')->count());
 
@@ -43,7 +43,8 @@ class CatalogosInicialesTest extends TestCase
         $this->assertSame(1122, DB::table('divipolas')->count());
         $this->assertSame(99, DB::table('veredas')->count());
         $this->assertSame(12, EnfoquePoblacional::query()->count());
-        $this->assertSame(18, LineaProductiva::query()->count());
+        $this->assertSame(21, LineaProductiva::query()->count());
+        $this->assertSame(43, DB::table('especies_productivas')->count());
     }
 
     public function test_las_tablas_operativas_comienzan_vacias(): void

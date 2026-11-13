@@ -14,6 +14,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SigraSelect } from '@/components/ui/sigra-select';
 import { cn } from '@/lib/utils';
 import { index } from '@/routes/productores';
 
@@ -240,28 +241,18 @@ export default function EditarProductor() {
                                         label="Tipo de documento"
                                         icon={FileText}
                                     >
-                                        <select
+                                        <SigraSelect
+                                            id="tipo-documento-productor"
                                             value={values.tipoDocumento}
-                                            onChange={(event) =>
-                                                setValue(
-                                                    'tipoDocumento',
-                                                    event.target.value,
-                                                )
+                                            onValueChange={(value) =>
+                                                setValue('tipoDocumento', value)
                                             }
-                                            className={cn(
-                                                inputClassName,
-                                                'appearance-none pl-[52px]',
-                                            )}
-                                        >
-                                            <option value="">
-                                                Seleccione...
-                                            </option>
-                                            {documentTypes.map((type) => (
-                                                <option key={type} value={type}>
-                                                    {type}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            placeholder="Seleccione..."
+                                            options={documentTypes.map((type) => ({
+                                                value: type,
+                                                label: type,
+                                            }))}
+                                        />
                                     </Campo>
                                     <Campo
                                         label="Número de documento"

@@ -12,15 +12,11 @@ class Corregimiento extends Model
 
     protected $primaryKey = 'corregimiento';
 
-    public const CREATED_AT = 'fecha_creacion';
-
-    public const UPDATED_AT = 'fecha_actualizacion';
-
     protected $fillable = ['divipola', 'nombre', 'activo'];
 
     protected function casts(): array
     {
-        return ['activo' => 'boolean', 'fecha_creacion' => 'datetime', 'fecha_actualizacion' => 'datetime'];
+        return ['activo' => 'boolean'];
     }
 
     /** @return BelongsTo<Divipola, $this> */

@@ -11,16 +11,7 @@ class Anexo extends Model
 
     protected $primaryKey = 'anexo';
 
-    public const CREATED_AT = 'fecha_creacion';
-
-    public const UPDATED_AT = null;
-
     protected $fillable = ['archivo', 'entidad', 'registro', 'tipo_anexo'];
-
-    protected function casts(): array
-    {
-        return ['fecha_creacion' => 'datetime'];
-    }
 
     /** @return BelongsTo<Archivo, $this> */
     public function archivo(): BelongsTo

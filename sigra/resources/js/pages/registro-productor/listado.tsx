@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import {
     CalendarDays,
@@ -7,7 +7,6 @@ import {
     ClipboardList,
     FileText,
     Filter,
-    History,
     MapPin,
     Pencil,
     Plus,
@@ -18,11 +17,22 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SigraSelect } from '@/components/ui/sigra-select';
 import { crear, index } from '@/routes/registro-productor';
-import {
-    registrosProductorDemostracion,
-    type RegistroProductorDemostracion,
-} from './datos-demostracion';
+
+type RegistroProductor = {
+    numero: string;
+    productor: string;
+    extensionista: string;
+    predio: string;
+    vereda: string;
+    fecha: string;
+    fechaISO: string;
+};
+
+type PageProps = {
+    registros?: RegistroProductor[];
+};
 
 const registrosPorPagina = 2;
 
@@ -47,21 +57,16 @@ function SelectFilter({
             <span className="text-[15px] font-semibold text-[#10281D] dark:text-[#E5F3E8]">
                 {label}
             </span>
-            <span className="relative block">
-                <Icon className="pointer-events-none absolute top-1/2 left-4 z-10 size-5 -translate-y-1/2 text-[#2F6A45] dark:text-[#9DCEA8]" />
-                <select
-                    value={value}
-                    onChange={(event) => onChange(event.target.value)}
-                    className={`${controlClassName} appearance-none pl-12`}
-                >
-                    <option value="">Todos</option>
-                    {options.map((option) => (
-                        <option key={option} value={option}>
-                            {option}
-                        </option>
-                    ))}
-                </select>
-            </span>
+            <SigraSelect
+                icon={Icon}
+                value={value}
+                onValueChange={onChange}
+                placeholder="Todos"
+                options={options.map((option) => ({
+                    value: option,
+                    label: option,
+                }))}
+            />
         </label>
     );
 }
@@ -71,9 +76,9 @@ function PendingAction({
     action,
     onClick,
 }: {
-    registro: RegistroProductorDemostracion;
+    registro: RegistroProductor;
     action: string;
-    onClick: (registro: RegistroProductorDemostracion, action: string) => void;
+    onClick: (registro: RegistroProductor, action: string) => void;
 }) {
     const className =
         action === 'Editar'
@@ -81,8 +86,7 @@ function PendingAction({
             : action === 'PDF'
               ? 'bg-[#DC2626] shadow-[0_3px_0_#B91C1C] hover:bg-[#B91C1C] focus-visible:ring-[#DC2626]/35'
               : 'bg-[#2563EB] shadow-[0_3px_0_#1747A5] hover:bg-[#1D4ED8] focus-visible:ring-[#2563EB]/35';
-    const Icon =
-        action === 'Editar' ? Pencil : action === 'PDF' ? FileText : History;
+    const Icon = action === 'Editar' ? Pencil : FileText;
 
     return (
         <Button
@@ -97,6 +101,7 @@ function PendingAction({
 }
 
 export default function ListadoRegistroProductor() {
+    const { registros: registrosProductor = [] } = usePage<PageProps>().props;
     const [busqueda, setBusqueda] = useState('');
     const [productor, setProductor] = useState('');
     const [extensionista, setExtensionista] = useState('');
@@ -113,7 +118,7 @@ export default function ListadoRegistroProductor() {
         () =>
             Array.from(
                 new Set(
-                    registrosProductorDemostracion.map(
+                    registrosProductor.map(
                         (registro) => registro.extensionista,
                     ),
                 ),
@@ -123,11 +128,7 @@ export default function ListadoRegistroProductor() {
     const veredas = useMemo(
         () =>
             Array.from(
-                new Set(
-                    registrosProductorDemostracion.map(
-                        (registro) => registro.vereda,
-                    ),
-                ),
+                new Set(registrosProductor.map((registro) => registro.vereda)),
             ),
         [],
     );
@@ -135,7 +136,7 @@ export default function ListadoRegistroProductor() {
         const textoBusqueda = busqueda.trim().toLowerCase();
         const textoProductor = productor.trim().toLowerCase();
 
-        return registrosProductorDemostracion.filter((registro) => {
+        return registrosProductor.filter((registro) => {
             return (
                 registro.numero.toLowerCase().includes(textoBusqueda) &&
                 registro.productor.toLowerCase().includes(textoProductor) &&
@@ -160,9 +161,9 @@ export default function ListadoRegistroProductor() {
         (paginaActual - 1) * registrosPorPagina,
         paginaActual * registrosPorPagina,
     );
-    const totalRegistros = registrosProductorDemostracion.length;
+    const totalRegistros = registrosProductor.length;
     const veredasAtendidas = new Set(
-        registrosProductorDemostracion
+        registrosProductor
             .map((registro) =>
                 registro.vereda.trim().replace(/\s+/g, ' ').toLocaleLowerCase(),
             )
@@ -178,8 +179,8 @@ export default function ListadoRegistroProductor() {
         },
         {
             title: 'Seguimiento',
-            value: '—',
-            description: 'Estado pendiente de definir',
+            value: 0,
+            description: 'Borradores',
             icon: CalendarDays,
             iconClassName: 'bg-[#1B86B5] text-white',
         },
@@ -393,13 +394,10 @@ export default function ListadoRegistroProductor() {
                                     Registros del productor
                                 </h2>
                                 <p className="mt-1 text-[15px] text-[#3E5547] dark:text-[#BFD9C5]">
-                                    Caracterizaciones temporales mientras se
-                                    integra la persistencia real.
+                                    Las caracterizaciones guardadas aparecerán
+                                    aquí.
                                 </p>
                             </div>
-                            <span className="inline-flex w-fit items-center rounded-full bg-[#FFF4CC] px-4 py-2 text-[15px] font-extrabold text-[#665000]">
-                                Datos de demostración
-                            </span>
                         </div>
 
                         {registrosVisibles.length > 0 ? (
@@ -470,11 +468,7 @@ export default function ListadoRegistroProductor() {
                                         </dl>
 
                                         <div className="mt-6 flex flex-wrap gap-3 border-t-2 border-dashed border-[#B5CAAE] pt-5 dark:border-[#3E5B46]">
-                                            {[
-                                                'Editar',
-                                                'PDF',
-                                                'Trazabilidad',
-                                            ].map((action) => (
+                                            {['Editar', 'PDF'].map((action) => (
                                                 <PendingAction
                                                     key={action}
                                                     registro={registro}
@@ -506,43 +500,54 @@ export default function ListadoRegistroProductor() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="mt-6 rounded-2xl border border-dashed border-[#B5CAAE] bg-[#F7FBF4] px-5 py-8 text-center text-[15px] text-[#607665] dark:border-[#3E5B46] dark:bg-[#22352A] dark:text-[#BFD9C5]">
-                                No hay registros disponibles que coincidan con
-                                los filtros seleccionados.
-                            </p>
+                            <div className="mt-6 rounded-2xl border border-dashed border-[#B5CAAE] bg-[#F7FBF4] px-5 py-8 text-center dark:border-[#3E5B46] dark:bg-[#22352A]">
+                                <p className="font-semibold text-[#10281D] dark:text-[#F0FFF3]">
+                                    No hay caracterizaciones registradas.
+                                </p>
+                                <p className="mt-1 text-[15px] text-[#607665] dark:text-[#BFD9C5]">
+                                    Las caracterizaciones guardadas aparecerán
+                                    aquí.
+                                </p>
+                            </div>
                         )}
 
-                        <div className="mt-6 flex flex-col gap-4 border-t-2 border-dashed border-[#B5CAAE] pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-[#3E5B46]">
-                            <p className="text-[15px] text-[#607665] dark:text-[#BFD9C5]">
-                                Mostrando {registrosVisibles.length} de{' '}
-                                {registrosFiltrados.length} registros
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    type="button"
-                                    disabled={paginaActual <= 1}
-                                    onClick={() => setPagina(paginaActual - 1)}
-                                    variant="outline"
-                                    aria-label="Página anterior"
-                                    className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
-                                >
-                                    <ChevronLeft className="size-5" />
-                                </Button>
-                                <span className="flex min-h-11 items-center rounded-[14px] border-[1.5px] border-[#B5CAAE] bg-[#F7FBF4] px-4 text-[15px] font-bold text-[#607665]">
-                                    Página {paginaActual} de {totalPaginas}
-                                </span>
-                                <Button
-                                    type="button"
-                                    disabled={paginaActual >= totalPaginas}
-                                    onClick={() => setPagina(paginaActual + 1)}
-                                    variant="outline"
-                                    aria-label="Página siguiente"
-                                    className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
-                                >
-                                    <ChevronRight className="size-5" />
-                                </Button>
+                        {registrosFiltrados.length > 0 && (
+                            <div className="mt-6 flex flex-col gap-4 border-t-2 border-dashed border-[#B5CAAE] pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-[#3E5B46]">
+                                <p className="text-[15px] text-[#607665] dark:text-[#BFD9C5]">
+                                    Mostrando {registrosVisibles.length} de{' '}
+                                    {registrosFiltrados.length} registros
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        disabled={paginaActual <= 1}
+                                        onClick={() =>
+                                            setPagina(paginaActual - 1)
+                                        }
+                                        variant="outline"
+                                        aria-label="Página anterior"
+                                        className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
+                                    >
+                                        <ChevronLeft className="size-5" />
+                                    </Button>
+                                    <span className="flex min-h-11 items-center rounded-[14px] border-[1.5px] border-[#B5CAAE] bg-[#F7FBF4] px-4 text-[15px] font-bold text-[#607665]">
+                                        Página {paginaActual} de {totalPaginas}
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        disabled={paginaActual >= totalPaginas}
+                                        onClick={() =>
+                                            setPagina(paginaActual + 1)
+                                        }
+                                        variant="outline"
+                                        aria-label="Página siguiente"
+                                        className="size-11 rounded-[14px] border-[#B5CAAE] p-0"
+                                    >
+                                        <ChevronRight className="size-5" />
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </section>
                 </div>
             </main>

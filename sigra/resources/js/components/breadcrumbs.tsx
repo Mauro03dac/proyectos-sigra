@@ -27,11 +27,14 @@ export function Breadcrumbs({
                                 <Fragment key={index}>
                                     <BreadcrumbItem>
                                         {isLast ? (
-                                            <BreadcrumbPage>
+                                            <BreadcrumbPage className="font-bold">
                                                 {item.title}
                                             </BreadcrumbPage>
                                         ) : (
-                                            <BreadcrumbLink asChild>
+                                            <BreadcrumbLink
+                                                asChild
+                                                className="font-bold"
+                                            >
                                                 <Link href={item.href}>
                                                     {item.title}
                                                 </Link>

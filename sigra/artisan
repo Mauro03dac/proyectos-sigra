@@ -6,6 +6,11 @@ use Symfony\Component\Console\Input\ArgvInput;
 
 define('LARAVEL_START', microtime(true));
 
+// Keep HTTP uploads within the MI10-F58 contract when Herd starts PHP's server.
+$herdIniDir = __DIR__.'/php-config/85';
+putenv('HERD_PHP_85_INI_SCAN_DIR='.$herdIniDir);
+$_ENV['HERD_PHP_85_INI_SCAN_DIR'] = $herdIniDir;
+
 // Register the Composer autoloader...
 require __DIR__.'/vendor/autoload.php';
 

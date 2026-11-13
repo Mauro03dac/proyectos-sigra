@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProductorController;
 use App\Http\Controllers\VisitaExtensionismoController;
 use Illuminate\Support\Facades\Route;
@@ -7,13 +8,14 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('visitas-extensionismo', [VisitaExtensionismoController::class, 'index'])->name('visitas-extensionismo.index');
     Route::get('visitas-extensionismo/crear', [VisitaExtensionismoController::class, 'create'])->name('visitas-extensionismo.crear');
     Route::post('visitas-extensionismo/borrador', [VisitaExtensionismoController::class, 'storeBorrador'])->name('visitas-extensionismo.borrador');
     Route::post('visitas-extensionismo', [VisitaExtensionismoController::class, 'store'])->name('visitas-extensionismo.store');
     Route::get('visitas-extensionismo/{visita}/editar', [VisitaExtensionismoController::class, 'edit'])->name('visitas-extensionismo.editar');
     Route::get('visitas-extensionismo/{visita}/fotografias/{anexo}', [VisitaExtensionismoController::class, 'fotografia'])->name('visitas-extensionismo.fotografia');
+    Route::delete('visitas-extensionismo/{visita}/fotografias/{anexo}', [VisitaExtensionismoController::class, 'eliminarFotografia'])->name('visitas-extensionismo.fotografia.eliminar');
     Route::put('visitas-extensionismo/{visita}/borrador', [VisitaExtensionismoController::class, 'updateBorrador'])->name('visitas-extensionismo.borrador.actualizar');
     Route::put('visitas-extensionismo/{visita}', [VisitaExtensionismoController::class, 'update'])->name('visitas-extensionismo.update');
     Route::get('visitas-extensionismo/productores', [VisitaExtensionismoController::class, 'buscarProductores'])->name('visitas-extensionismo.productores.buscar');

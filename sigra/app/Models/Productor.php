@@ -12,15 +12,11 @@ class Productor extends Model
 
     protected $primaryKey = 'productor';
 
-    public const CREATED_AT = 'fecha_creacion';
-
-    public const UPDATED_AT = 'fecha_actualizacion';
-
     protected $fillable = ['nombres', 'apellidos', 'tipo_documento', 'numero_documento', 'telefono', 'fecha_nacimiento', 'sexo'];
 
     protected function casts(): array
     {
-        return ['fecha_nacimiento' => 'date', 'fecha_creacion' => 'datetime', 'fecha_actualizacion' => 'datetime'];
+        return ['fecha_nacimiento' => 'date'];
     }
 
     /** @return Attribute<string, never> */

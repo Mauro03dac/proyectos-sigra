@@ -16,21 +16,31 @@ use App\Models\User;
 use App\Models\Vereda;
 use App\Models\VersionAuditoria;
 use App\Models\VisitaExtensionismo;
+use App\Servicios\ServicioAuditoria;
 use App\Servicios\ServicioVisitasExtensionismo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class VisitaExtensionismoController extends Controller
 {
+    private const MENSAJE_EXITO_VISITA = 'Visita guardada correctamente. La información fue registrada satisfactoriamente';
+
+    private const MENSAJE_EXITO_BORRADOR = 'Borrador guardado correctamente. Puedes continuar diligenciándolo posteriormente';
+
+    private const MENSAJE_ERROR_GUARDADO = 'No fue posible guardar la visita. Revisa los errores indicados e inténtalo nuevamente';
+
     public function index(Request $request): Response
     {
-        $consulta = VisitaExtensionismo::query()->with(['productor', 'predio.vereda', 'usuarioResponsable'])
+        $consulta = VisitaExtensionismo::query()->with(['borrador.veredaRelacion', 'productor', 'predio.vereda', 'usuarioResponsable'])
             ->when($request->filled('buscar'), function ($q) use ($request): void {
                 $texto = $request->string('buscar')->toString();
                 $q->where(function ($q) use ($texto): void {
@@ -44,11 +54,14 @@ class VisitaExtensionismoController extends Controller
             ->latest('visita_extensionismo');
         $paginadas = $consulta->paginate(10)->withQueryString();
         $ids = $paginadas->getCollection()->pluck('visita_extensionismo');
-        $historial = VersionAuditoria::query()->with(['cambios', 'usuarioResponsable'])->where('entidad', 'visita_extensionismo')->whereIn('registro', $ids)->latest('numero_version')->get()->groupBy('registro')->map(fn ($versiones) => $versiones->map(function ($version): array {
-            $usuario = $version->usuarioResponsable()->first();
+        $nombresEnfoques = EnfoquePoblacional::query()->pluck('nombre', 'enfoque_poblacional')->all();
+        $historial = VersionAuditoria::query()->with(['cambios', 'usuarioResponsable'])->where('entidad', 'visita_extensionismo')->whereIn('registro', $ids)->latest('numero_version')->get()->groupBy('registro')->map(function ($versiones) use ($nombresEnfoques): array {
+            return $versiones->map(function ($version) use ($nombresEnfoques): array {
+                $usuario = $version->getRelation('usuarioResponsable');
 
-            return ['id' => (string) $version->numero_version, 'numero' => (int) $version->numero_version, 'fechaHora' => Carbon::parse($version->fecha_creacion)->format('d/m/Y H:i'), 'usuario' => $usuario ? $usuario->name : 'Usuario no disponible', 'operacion' => $version->accion, 'cambios' => $version->cambios->map(fn ($cambio) => ['campo' => $cambio->campo, 'etiqueta' => $this->etiquetaCampo($cambio->campo), 'anterior' => $cambio->valor_anterior ?? 'Sin valor', 'nuevo' => $cambio->valor_nuevo ?? 'Sin valor'])->all()];
-        })->all())->all();
+                return ['id' => (string) $version->numero_version, 'numero' => (int) $version->numero_version, 'fechaHora' => Carbon::parse($version->created_at)->format('d/m/Y H:i'), 'usuario' => $usuario ? $usuario->name : 'Usuario no disponible', 'operacion' => $version->accion, 'cambios' => $version->cambios->map(fn ($cambio) => ['campo' => $cambio->campo, 'etiqueta' => $this->etiquetaCampo($cambio->campo), 'anterior' => $cambio->campo === 'enfoques_poblacionales' ? $this->nombresEnfoques($cambio->valor_anterior, $nombresEnfoques) : ($cambio->valor_anterior ?? 'Sin valor'), 'nuevo' => $cambio->campo === 'enfoques_poblacionales' ? $this->nombresEnfoques($cambio->valor_nuevo, $nombresEnfoques) : ($cambio->valor_nuevo ?? 'Sin valor')])->all()];
+            })->all();
+        })->all();
 
         return Inertia::render('visitas-extensionismo/listado', ['visitas' => $paginadas->getCollection()->map(fn (VisitaExtensionismo $v) => $this->resumen($v))->all(), 'paginacion' => ['paginaActual' => $paginadas->currentPage(), 'ultimaPagina' => $paginadas->lastPage(), 'total' => $paginadas->total()], 'historialTrazabilidad' => $historial, 'filtros' => $request->only(['buscar', 'desde', 'hasta']), 'indicadores' => ['total' => VisitaExtensionismo::count(), 'borradores' => VisitaExtensionismo::where('estado', 'borrador')->count(), 'veredas' => VisitaExtensionismo::query()->whereNotNull('visitas_extensionismo.predio')->join('predios', 'predios.predio', '=', 'visitas_extensionismo.predio')->distinct('predios.vereda')->count('predios.vereda')]]);
     }
@@ -60,7 +73,7 @@ class VisitaExtensionismoController extends Controller
 
     public function edit(VisitaExtensionismo $visita): Response
     {
-        $visita->load(['productor', 'predio.divipola', 'predio.corregimiento', 'predio.vereda', 'enfoquesPoblacionales', 'anexos.archivo']);
+        $visita->load(['borrador', 'productor.predios.divipola', 'productor.predios.corregimiento', 'productor.predios.vereda', 'predio.divipola', 'predio.corregimiento', 'predio.vereda', 'lineaProductivaPrincipal', 'lineaProductivaSecundaria', 'especieProductiva', 'enfoquesPoblacionales', 'anexos.archivo']);
 
         return Inertia::render('visitas-extensionismo/crear', [...$this->catalogos(), 'visita' => $this->formulario($visita)]);
     }
@@ -73,44 +86,115 @@ class VisitaExtensionismoController extends Controller
         return Storage::disk($archivo->disco)->response($archivo->ruta, $archivo->nombre_original, ['Content-Type' => $archivo->tipo_mime]);
     }
 
+    public function eliminarFotografia(VisitaExtensionismo $visita, Anexo $anexo, ServicioAuditoria $auditoria): RedirectResponse
+    {
+        abort_unless($anexo->entidad === 'visita_extensionismo' && (int) $anexo->registro === (int) $visita->getKey() && $anexo->tipo_anexo === 'fotografia', 404);
+        $archivo = $anexo->archivo()->firstOrFail();
+        $nombre = $archivo->nombre_original;
+
+        DB::transaction(function () use ($anexo, $archivo, $auditoria, $visita, $nombre): void {
+            $anexo->delete();
+            if (! $archivo->anexos()->exists()) {
+                Storage::disk($archivo->disco)->delete($archivo->ruta);
+                $archivo->delete();
+            }
+            $auditoria->registrar('visita_extensionismo', (int) $visita->getKey(), 'Fotografía eliminada', auth()->id(), [
+                'fotografia' => ['anterior' => $nombre, 'nuevo' => null],
+            ]);
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Fotografía eliminada correctamente.']);
+
+        return back();
+    }
+
     public function storeBorrador(GuardarBorradorVisitaRequest $request, ServicioVisitasExtensionismo $servicio): RedirectResponse
     {
-        $visita = $servicio->guardar($request->validated(), (int) $request->user()->id, false);
+        try {
+            $visita = $servicio->guardar($request->validated(), (int) $request->user()->id, false);
+        } catch (\Throwable $error) {
+            return $this->respuestaErrorGuardado($error);
+        }
 
-        return to_route('visitas-extensionismo.editar', $visita)->with('success', 'Borrador guardado correctamente.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => self::MENSAJE_EXITO_BORRADOR]);
+
+        return to_route('visitas-extensionismo.editar', $visita);
     }
 
     public function store(GuardarVisitaRequest $request, ServicioVisitasExtensionismo $servicio): RedirectResponse
     {
-        $servicio->guardar($request->validated(), (int) $request->user()->id, true);
+        try {
+            $servicio->guardar($request->validated(), (int) $request->user()->id, true);
+        } catch (\Throwable $error) {
+            return $this->respuestaErrorGuardado($error);
+        }
 
-        return to_route('visitas-extensionismo.index')->with('success', 'Visita guardada correctamente.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => self::MENSAJE_EXITO_VISITA]);
+
+        return to_route('visitas-extensionismo.index');
     }
 
     public function updateBorrador(GuardarBorradorVisitaRequest $request, VisitaExtensionismo $visita, ServicioVisitasExtensionismo $servicio): RedirectResponse
     {
-        $servicio->guardar($request->validated(), (int) $request->user()->id, false, $visita);
+        try {
+            $servicio->guardar($request->validated(), (int) $request->user()->id, false, $visita);
+        } catch (\Throwable $error) {
+            return $this->respuestaErrorGuardado($error);
+        }
 
-        return to_route('visitas-extensionismo.editar', $visita)->with('success', 'Borrador actualizado correctamente.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => self::MENSAJE_EXITO_BORRADOR]);
+
+        return to_route('visitas-extensionismo.editar', $visita);
     }
 
     public function update(GuardarVisitaRequest $request, VisitaExtensionismo $visita, ServicioVisitasExtensionismo $servicio): RedirectResponse
     {
-        $servicio->guardar($request->validated(), (int) $request->user()->id, true, $visita);
+        try {
+            $servicio->guardar($request->validated(), (int) $request->user()->id, true, $visita);
+        } catch (\Throwable $error) {
+            return $this->respuestaErrorGuardado($error);
+        }
 
-        return to_route('visitas-extensionismo.index')->with('success', 'Visita actualizada correctamente.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => self::MENSAJE_EXITO_VISITA]);
+
+        return to_route('visitas-extensionismo.index');
+    }
+
+    private function respuestaErrorGuardado(\Throwable $error): RedirectResponse
+    {
+        if ($error instanceof HttpExceptionInterface && $error->getStatusCode() === 422) {
+            throw ValidationException::withMessages([
+                'numero_documento' => [$error->getMessage()],
+            ]);
+        }
+
+        report($error);
+        Inertia::flash('toast', ['type' => 'error', 'message' => self::MENSAJE_ERROR_GUARDADO]);
+
+        return back()->withInput();
     }
 
     public function buscarProductores(Request $request): JsonResponse
     {
-        $documento = trim($request->string('numero_documento')->toString());
-        $nombres = trim($request->string('nombres')->toString());
-        $apellidos = trim($request->string('apellidos')->toString());
+        $tipoDocumento = trim((string) $request->input('tipo_documento', ''));
+        $documento = trim((string) $request->input('numero_documento', ''));
+        $nombres = trim((string) $request->input('nombres', ''));
+        $apellidos = trim((string) $request->input('apellidos', ''));
+        $consulta = Productor::query()->with(['predios.divipola', 'predios.corregimiento', 'predios.vereda']);
+
+        if ($tipoDocumento !== '') {
+            if ($documento === '') {
+                return response()->json([]);
+            }
+
+            return response()->json($consulta->where('tipo_documento', $tipoDocumento)->where('numero_documento', $documento)->get()->map(fn (Productor $productor): array => $this->datosProductor($productor))->values());
+        }
+
         if (mb_strlen($documento) < 2 && mb_strlen($nombres) < 2 && mb_strlen($apellidos) < 2) {
             return response()->json([]);
         }
 
-        return response()->json(Productor::query()->with(['predios.divipola', 'predios.corregimiento', 'predios.vereda'])->when($documento !== '' && $nombres === '' && $apellidos === '', fn ($q) => $q->where(fn ($q) => $q->where('numero_documento', 'like', "%{$documento}%")->orWhere('nombres', 'like', "%{$documento}%")->orWhere('apellidos', 'like', "%{$documento}%")))->when($documento !== '' && ($nombres !== '' || $apellidos !== ''), fn ($q) => $q->where('numero_documento', 'like', "%{$documento}%"))->when($nombres !== '', fn ($q) => $q->where('nombres', 'like', "%{$nombres}%"))->when($apellidos !== '', fn ($q) => $q->where('apellidos', 'like', "%{$apellidos}%"))->limit(10)->get());
+        return response()->json($consulta->when($documento !== '' && $nombres === '' && $apellidos === '', fn ($q) => $q->where(fn ($q) => $q->where('numero_documento', 'like', "%{$documento}%")->orWhere('nombres', 'like', "%{$documento}%")->orWhere('apellidos', 'like', "%{$documento}%")))->when($documento !== '' && ($nombres !== '' || $apellidos !== ''), fn ($q) => $q->where('numero_documento', 'like', "%{$documento}%"))->when($nombres !== '', fn ($q) => $q->where('nombres', 'like', "%{$nombres}%"))->when($apellidos !== '', fn ($q) => $q->where('apellidos', 'like', "%{$apellidos}%"))->limit(10)->get()->map(fn (Productor $productor): array => $this->datosProductor($productor))->values());
     }
 
     /** @return array<string, string> */
@@ -118,10 +202,12 @@ class VisitaExtensionismoController extends Controller
     {
         $productor = $v->getRelation('productor');
         $predio = $v->getRelation('predio');
+        $borrador = $v->getRelation('borrador');
         $usuario = $v->getRelation('usuarioResponsable');
         $vereda = $predio instanceof Predio ? $predio->getRelation('vereda') : null;
+        $veredaBorrador = $borrador?->getRelation('veredaRelacion');
 
-        return ['numero' => (string) $v->getKey(), 'productor' => $productor instanceof Productor ? $productor->nombre_completo : trim("{$v->nombres_productor_borrador} {$v->apellidos_productor_borrador}"), 'extensionista' => $v->nombre_extensionista ?? ($usuario instanceof User ? $usuario->name : 'Sin asignar'), 'fecha' => $v->fecha_visita ? Carbon::parse($v->fecha_visita)->format('d/m/Y') : 'Sin fecha', 'vereda' => $vereda instanceof Vereda ? $vereda->nombre : '', 'estado' => $v->estado === 'borrador' ? 'Borrador' : 'Registrada'];
+        return ['entidad' => 'visita_extensionismo', 'etiquetaEntidad' => 'Visita', 'numero' => (string) $v->getKey(), 'productor' => $productor instanceof Productor ? $productor->nombre_completo : trim("{$borrador?->nombres_productor} {$borrador?->apellidos_productor}"), 'extensionista' => $v->nombre_extensionista ?? ($usuario instanceof User ? $usuario->name : 'Sin asignar'), 'fecha' => $v->fecha_visita ? Carbon::parse($v->fecha_visita)->format('d/m/Y') : 'Sin fecha', 'vereda' => $vereda instanceof Vereda ? $vereda->nombre : ($veredaBorrador instanceof Vereda ? $veredaBorrador->nombre : 'Sin registrar'), 'estado' => $v->estado === 'borrador' ? 'Borrador' : 'Registrada', 'estadoReal' => $v->estado];
     }
 
     /** @return array<string, mixed> */
@@ -129,19 +215,162 @@ class VisitaExtensionismoController extends Controller
     {
         $productor = $this->productorDe($v);
         $predio = $this->predioDe($v);
+        $borrador = $v->getRelation('borrador');
+        $actividad = $this->actividadFormulario($v);
 
-        return ['id' => $v->getKey(), 'estado' => $v->estado, 'campos' => [...$v->only(['fecha_visita', 'linea_productiva_principal', 'linea_productiva_secundaria', 'especie_productiva', 'numero_animales', 'area_hectareas', 'tipo_discapacidad', 'victima_conflicto_armado', 'afiliado_sisben', 'puntaje_sisben', 'afiliado_asociacion', 'nombre_asociacion', 'aspecto_visita', 'componente_visita', 'diagnostico', 'actividades_realizadas', 'principales_proveedores', 'principales_compradores', 'fuentes_consulta', 'recomendaciones', 'compromisos', 'nombre_extensionista', 'numero_documento_extensionista', 'disciplina_extensionista', 'titulo_academico_extensionista']), 'nombres' => $productor ? $productor->nombres : $v->nombres_productor_borrador, 'apellidos' => $productor ? $productor->apellidos : $v->apellidos_productor_borrador, 'tipo_documento' => $productor ? $productor->tipo_documento : $v->tipo_documento_borrador, 'numero_documento' => $productor ? $productor->numero_documento : $v->numero_documento_borrador, 'telefono' => $productor ? $productor->telefono : $v->telefono_productor_borrador, 'sexo' => $productor ? $productor->sexo : $v->sexo_productor_borrador, 'productor_existente' => $productor ? $productor->getKey() : null, 'predio_existente' => $predio ? $predio->getKey() : null, 'nombre_predio' => $predio ? $predio->nombre : $v->nombre_predio_borrador, 'divipola' => $predio ? $predio->divipola : $v->divipola_borrador, 'corregimiento' => $predio ? $predio->corregimiento : $v->corregimiento_borrador, 'vereda' => $predio ? $predio->vereda : $v->vereda_borrador, 'latitud' => $predio ? $predio->latitud : $v->latitud_borrador, 'longitud' => $predio ? $predio->longitud : $v->longitud_borrador, 'enfoques_poblacionales' => $v->enfoquesPoblacionales->pluck('enfoque_poblacional')->all(), 'fotografias' => $v->anexos->map(fn ($a) => ['id' => $a->getKey(), 'nombre' => $a->archivo()->first()->nombre_original])->all()]];
+        return [
+            'id' => $v->getKey(),
+            'estado' => $v->estado,
+            'productor' => $productor ? $this->datosProductor($productor) : null,
+            'actividadHistorica' => [
+                'principal' => $this->lineaHistorica($v->getRelation('lineaProductivaPrincipal')),
+                'secundaria' => $this->lineaHistorica($v->getRelation('lineaProductivaSecundaria')),
+            ],
+            'campos' => [...$v->only(['fecha_visita', 'numero_animales', 'area_hectareas', 'unidad_area_ingresada', 'tipo_discapacidad', 'victima_conflicto_armado', 'afiliado_sisben', 'puntaje_sisben', 'afiliado_asociacion', 'nombre_asociacion', 'aspecto_visita', 'componente_visita', 'diagnostico', 'actividades_realizadas', 'principales_proveedores', 'principales_compradores', 'fuentes_consulta', 'recomendaciones', 'compromisos', 'nombre_extensionista', 'numero_documento_extensionista', 'disciplina_extensionista', 'titulo_academico_extensionista']), ...$actividad],
+            'nombres' => $borrador?->nombres_productor ?? $productor?->nombres,
+            'apellidos' => $borrador?->apellidos_productor ?? $productor?->apellidos,
+            'tipo_documento' => $borrador?->tipo_documento ?? $productor?->tipo_documento,
+            'numero_documento' => $borrador?->numero_documento ?? $productor?->numero_documento,
+            'telefono' => $borrador?->telefono_productor ?? $productor?->telefono,
+            'sexo' => $borrador?->sexo_productor ?? $productor?->sexo,
+            'productor_existente' => $productor?->getKey(),
+            'predio_existente' => $predio?->getKey(),
+            'nombre_predio' => $borrador?->nombre_predio ?? $predio?->nombre,
+            'divipola' => $borrador?->divipola ?? $predio?->divipola,
+            'corregimiento' => $borrador?->corregimiento ?? $predio?->corregimiento,
+            'vereda' => $borrador?->vereda ?? $predio?->vereda,
+            'latitud' => $borrador?->latitud ?? $predio?->latitud,
+            'longitud' => $borrador?->longitud ?? $predio?->longitud,
+            'enfoques_poblacionales' => $v->enfoquesPoblacionales->pluck('enfoque_poblacional')->all(),
+            'fotografias' => $v->anexos->map(fn ($a) => ['id' => $a->getKey(), 'nombre' => $a->archivo()->first()->nombre_original])->all(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function actividadFormulario(VisitaExtensionismo $visita): array
+    {
+        $principal = $visita->getRelation('lineaProductivaPrincipal');
+        $secundaria = $visita->getRelation('lineaProductivaSecundaria');
+        $especie = $visita->getRelation('especieProductiva');
+        $categoriaPrincipal = $principal ? $this->categoriaLinea($principal->codigo) : null;
+        $categoriaSecundaria = $secundaria ? $this->categoriaLinea($secundaria->codigo) : null;
+        $semanticaEspecie = $especie ? $this->semanticaEspecie($especie->codigo) : null;
+
+        return [
+            'linea_productiva_principal' => $this->idLineaCanonica($categoriaPrincipal),
+            'especie_productiva' => $categoriaPrincipal && $categoriaPrincipal !== 'OTRA'
+                ? $this->idEspecieCanonica($categoriaPrincipal, $semanticaEspecie)
+                : null,
+            'linea_productiva_secundaria' => $this->idLineaCanonica($categoriaSecundaria),
+            'linea_productiva_principal_otra' => $visita->linea_productiva_principal_otra,
+            'especie_productiva_otra' => $visita->especie_productiva_otra,
+            'linea_productiva_secundaria_otra' => $visita->linea_productiva_secundaria_otra,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function datosProductor(Productor $productor): array
+    {
+        return ['productor' => $productor->getKey(), 'nombres' => $productor->nombres, 'apellidos' => $productor->apellidos, 'tipo_documento' => $productor->tipo_documento, 'numero_documento' => $productor->numero_documento, 'telefono' => $productor->telefono, 'sexo' => $productor->sexo, 'predios' => $productor->predios->map(fn (Predio $predio): array => ['predio' => $predio->getKey(), 'nombre' => $predio->nombre, 'divipola' => $predio->divipola, 'corregimiento' => $predio->corregimiento, 'vereda' => $predio->vereda, 'latitud' => $predio->latitud, 'longitud' => $predio->longitud])->all()];
     }
 
     /** @return array<string, mixed> */
     private function catalogos(): array
     {
-        return ['divipolas' => Divipola::query()->orderBy('nombre_municipio')->get(['divipola', 'codigo_departamento', 'nombre_departamento', 'codigo_municipio', 'nombre_municipio']), 'corregimientos' => Corregimiento::query()->orderBy('nombre')->get(['corregimiento', 'divipola', 'nombre']), 'veredas' => Vereda::query()->orderBy('nombre')->get(['vereda', 'corregimiento', 'nombre']), 'lineasProductivas' => LineaProductiva::query()->where('activo', true)->orderBy('nombre')->get(['linea_productiva', 'nombre']), 'especiesProductivas' => EspecieProductiva::query()->where('activo', true)->orderBy('nombre')->get(['especie_productiva', 'linea_productiva', 'nombre']), 'enfoquesPoblacionales' => EnfoquePoblacional::query()->where('activo', true)->orderBy('nombre')->get(['enfoque_poblacional', 'nombre'])];
+        $lineas = LineaProductiva::query()->where('activo', true)->whereIn('codigo', ['AGRICOLA', 'PECUARIO'])->get(['linea_productiva', 'codigo', 'nombre'])->sortBy(fn (LineaProductiva $linea): int => array_search($linea->codigo, ['AGRICOLA', 'PECUARIO'], true))->values();
+        $idsLineas = $lineas->pluck('linea_productiva');
+        $especies = EspecieProductiva::query()->where('activo', true)->whereIn('linea_productiva', $idsLineas)->get(['especie_productiva', 'linea_productiva', 'codigo', 'nombre', 'grupo']);
+
+        return ['divipolas' => Divipola::query()->orderBy('nombre_municipio')->get(['divipola', 'codigo_departamento', 'nombre_departamento', 'codigo_municipio', 'nombre_municipio']), 'corregimientos' => Corregimiento::query()->orderBy('nombre')->get(['corregimiento', 'divipola', 'nombre']), 'veredas' => Vereda::query()->orderBy('nombre')->get(['vereda', 'corregimiento', 'nombre']), 'lineasProductivas' => $lineas, 'especiesProductivas' => $especies, 'enfoquesPoblacionales' => EnfoquePoblacional::query()->where('activo', true)->orderBy('nombre')->get(['enfoque_poblacional', 'nombre'])];
+    }
+
+    /** @return array{id: int, codigo: string, nombre: string}|null */
+    private function lineaHistorica(?LineaProductiva $linea): ?array
+    {
+        if ($linea === null || $linea->codigo !== 'OTRA') {
+            return null;
+        }
+
+        return [
+            'id' => (int) $linea->getKey(),
+            'codigo' => $linea->codigo,
+            'nombre' => $linea->nombre,
+        ];
+    }
+
+    private function categoriaLinea(string $codigo): ?string
+    {
+        if (in_array($codigo, ['AGRICOLA', 'PECUARIO', 'OTRA'], true)) {
+            return $codigo;
+        }
+
+        if (in_array($codigo, ['ARROZ', 'CACAO', 'CAFE', 'PLATANO_BANANO', 'MAIZ', 'YUCA', 'CANA', 'PALMA_ACEITE', 'PINA', 'FRUTICULTURA', 'CITRICULTURA', 'SORGO'], true)) {
+            return 'AGRICOLA';
+        }
+
+        return in_array($codigo, ['GANADERIA_BOVINA', 'PRODUCCION_EQUINA', 'PISCICULTURA', 'AVICULTURA', 'PORCICULTURA', 'OVINOCULTURA'], true) ? 'PECUARIO' : null;
+    }
+
+    private function semanticaEspecie(string $codigo): string
+    {
+        return match ($codigo) {
+            'BOVINO', 'MI10_BOVINO' => 'BOVINO',
+            'EQUINO', 'MI10_EQUINO' => 'EQUINO',
+            'AVE', 'MI10_AVICOLA' => 'AVICOLA',
+            'PORCINO', 'MI10_PORCINO' => 'PORCINO',
+            'OVINO', 'MI10_OVINO' => 'OVINO',
+            'MI10_PISCICOLA', 'CACHAMA', 'MOJARRA', 'YAMU', 'BAGRE', 'BOCACHICO' => 'PISCICOLA',
+            'MI10_OTRA_AGRICOLA', 'MI10_OTRA_PECUARIO' => 'OTRA',
+            default => str_starts_with($codigo, 'MI10_') ? substr($codigo, 5) : $codigo,
+        };
+    }
+
+    private function idLineaCanonica(?string $categoria): ?int
+    {
+        return $categoria === null ? null : (int) DB::table('lineas_productivas')->where('codigo', $categoria)->value('linea_productiva');
+    }
+
+    private function idEspecieCanonica(string $categoria, ?string $semantica): ?int
+    {
+        if ($semantica === null || $semantica === '') {
+            return null;
+        }
+
+        $codigo = $semantica === 'OTRA'
+            ? ($categoria === 'AGRICOLA' ? 'MI10_OTRA_AGRICOLA' : 'MI10_OTRA_PECUARIO')
+            : 'MI10_'.$semantica;
+
+        $idLinea = $this->idLineaCanonica($categoria);
+
+        return $idLinea === null ? null : (int) DB::table('especies_productivas')->where('codigo', $codigo)->where('linea_productiva', $idLinea)->value('especie_productiva');
     }
 
     private function etiquetaCampo(string $campo): string
     {
         return ['diagnostico' => 'Diagnóstico', 'recomendaciones' => 'Recomendaciones', 'compromisos' => 'Compromisos', 'actividades_realizadas' => 'Actividades realizadas', 'enfoques_poblacionales' => 'Enfoques poblacionales', 'productor' => 'Productor', 'predio' => 'Predio', 'estado' => 'Estado'][$campo] ?? str_replace('_', ' ', ucfirst($campo));
+    }
+
+    /** @param array<int|string, string> $nombresEnfoques */
+    private function nombresEnfoques(?string $valor, array $nombresEnfoques): string
+    {
+        if ($valor === null || trim($valor) === '') {
+            return 'Sin valor';
+        }
+
+        $decodificado = json_decode($valor, true);
+        $identificadores = is_array($decodificado)
+            ? $decodificado
+            : (preg_split('/\s*,\s*/', trim($valor)) ?: []);
+
+        return collect($identificadores)
+            ->map(function (mixed $identificador) use ($nombresEnfoques): string {
+                $id = is_scalar($identificador) ? trim((string) $identificador) : '';
+
+                return $id !== '' && ctype_digit($id)
+                    ? ($nombresEnfoques[(int) $id] ?? 'Enfoque no disponible')
+                    : 'Enfoque no disponible';
+            })
+            ->implode(', ');
     }
 
     private function productorDe(VisitaExtensionismo $visita): ?Productor

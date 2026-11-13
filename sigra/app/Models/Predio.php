@@ -12,15 +12,11 @@ class Predio extends Model
 
     protected $primaryKey = 'predio';
 
-    public const CREATED_AT = 'fecha_creacion';
-
-    public const UPDATED_AT = 'fecha_actualizacion';
-
     protected $fillable = ['productor', 'nombre', 'divipola', 'corregimiento', 'vereda', 'latitud', 'longitud', 'hectareas', 'altitud_msnm'];
 
     protected function casts(): array
     {
-        return ['latitud' => 'decimal:7', 'longitud' => 'decimal:7', 'hectareas' => 'decimal:2', 'altitud_msnm' => 'decimal:2', 'fecha_creacion' => 'datetime', 'fecha_actualizacion' => 'datetime'];
+        return ['latitud' => 'decimal:7', 'longitud' => 'decimal:7', 'hectareas' => 'decimal:2', 'altitud_msnm' => 'decimal:2'];
     }
 
     /** @return BelongsTo<Productor, $this> */

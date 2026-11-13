@@ -41,7 +41,6 @@ class CargadorCatalogosIniciales
             'nombre_municipio' => $row[3],
             'tipo_municipio' => $row[4] ?: null,
             'activo' => true,
-            ...$this->fechas(),
         ], $rows));
     }
 
@@ -81,7 +80,6 @@ class CargadorCatalogosIniciales
             'divipola' => $divipola,
             'nombre' => $nombre,
             'activo' => true,
-            ...$this->fechas(),
         ], array_keys($totalesEsperados)));
 
         $corregimientos = DB::table('corregimientos')
@@ -99,7 +97,6 @@ class CargadorCatalogosIniciales
                 'corregimiento' => $corregimiento,
                 'nombre' => $row[1],
                 'activo' => true,
-                ...$this->fechas(),
             ];
         }, $rows));
     }
@@ -111,7 +108,6 @@ class CargadorCatalogosIniciales
             'codigo' => $row[0],
             'nombre' => $row[1],
             'activo' => true,
-            ...$this->fechas(),
         ], $rows));
     }
 
@@ -123,7 +119,6 @@ class CargadorCatalogosIniciales
             'nombre' => $row[1],
             'descripcion' => null,
             'activo' => true,
-            ...$this->fechas(),
         ], $rows));
     }
 
@@ -147,7 +142,6 @@ class CargadorCatalogosIniciales
             'codigo' => $row[1],
             'nombre' => $row[2],
             'activo' => true,
-            ...$this->fechas(),
         ], $rows));
     }
 
@@ -171,7 +165,6 @@ class CargadorCatalogosIniciales
                 'nombre' => $row[2],
                 'grupo' => $row[3],
                 'activo' => true,
-                ...$this->fechas(),
             ];
         }, $rows));
     }
@@ -226,18 +219,5 @@ class CargadorCatalogosIniciales
         foreach (array_chunk($rows, 500) as $chunk) {
             DB::table($tabla)->insertOrIgnore($chunk);
         }
-    }
-
-    /**
-     * @return array{fecha_creacion: string, fecha_actualizacion: string}
-     */
-    private function fechas(): array
-    {
-        $fecha = now()->toDateTimeString();
-
-        return [
-            'fecha_creacion' => $fecha,
-            'fecha_actualizacion' => $fecha,
-        ];
     }
 }

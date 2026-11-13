@@ -5,6 +5,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Filter,
+    History,
     Pencil,
     Phone,
     Search,
@@ -14,7 +15,12 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TrazabilidadModal } from '@/components/trazabilidad-modal';
 import { editar, index } from '@/routes/productores';
+import type {
+    RegistroTrazabilidad,
+    VersionTrazabilidad,
+} from '@/types/trazabilidad';
 
 type ProductorDirectorio = {
     id: string;
@@ -24,6 +30,7 @@ type ProductorDirectorio = {
     telefono: string;
     fechaNacimiento: string;
     fechaNacimientoISO: string;
+    fechaRegistro: string;
 };
 
 type PageProps = {
@@ -31,16 +38,20 @@ type PageProps = {
     filtros?: { nombre?: string; documento?: string };
     paginacion?: { paginaActual: number; ultimaPagina: number; total: number };
     totalProductores?: number;
+    historialTrazabilidad?: Record<string, VersionTrazabilidad[]>;
 };
 
 const controlClassName =
     'h-12 w-full rounded-[16px] border-[1.5px] border-[#6F9479] bg-[#F7FBF4] px-4 text-[16px] text-[#10281D] outline-none transition hover:border-[#17803D] focus:border-[#17803D] focus:bg-white focus:ring-[4px] focus:ring-[#4E9A2B]/30 dark:border-[#5E8068] dark:bg-[#24382A] dark:text-[#F0FFF3] dark:focus:bg-[#294330]';
 
 export default function ListadoProductores() {
-    const { productores: productoresDirectorio = [], filtros = {}, paginacion = { paginaActual: 1, ultimaPagina: 1, total: 0 }, totalProductores = 0 } =
+    const { productores: productoresDirectorio = [], filtros = {}, paginacion = { paginaActual: 1, ultimaPagina: 1, total: 0 }, totalProductores = 0, historialTrazabilidad = {} } =
         usePage<PageProps>().props;
     const [nombre, setNombre] = useState(filtros.nombre ?? '');
     const [documento, setDocumento] = useState(filtros.documento ?? '');
+    const [productorConTrazabilidad, setProductorConTrazabilidad] =
+        useState<RegistroTrazabilidad | null>(null);
+    const trazabilidadTriggerRef = useRef<HTMLButtonElement | null>(null);
     const primeraConsulta = useRef(true);
 
     useEffect(() => {
@@ -268,7 +279,7 @@ export default function ListadoProductores() {
                                             </div>
                                         </dl>
 
-                                        <div className="mt-6 flex justify-end border-t-2 border-dashed border-[#B5CAAE] pt-5 dark:border-[#3E5B46]">
+                                        <div className="mt-6 flex flex-wrap justify-end gap-3 border-t-2 border-dashed border-[#B5CAAE] pt-5 dark:border-[#3E5B46]">
                                             <Button
                                                 asChild
                                                 className="min-h-11 rounded-[14px] bg-[#B45309] px-5 text-[15px] font-bold text-white shadow-[0_3px_0_#7F3605] hover:bg-[#92400E] focus-visible:ring-[4px] focus-visible:ring-[#B45309]/35"
@@ -279,6 +290,27 @@ export default function ListadoProductores() {
                                                     <Pencil className="size-[18px]" />
                                                     Editar
                                                 </Link>
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    trazabilidadTriggerRef.current =
+                                                        event.currentTarget;
+                                                    setProductorConTrazabilidad({
+                                                        entidad: 'productor',
+                                                        etiquetaEntidad: 'Productor',
+                                                        numero: productor.id,
+                                                        productor: productor.nombreCompleto,
+                                                        extensionista: 'Usuario responsable',
+                                                        fecha: productor.fechaRegistro,
+                                                        vereda: 'No aplica',
+                                                        estado: 'Registrado',
+                                                    });
+                                                }}
+                                                className="min-h-11 rounded-[14px] bg-[#2563EB] px-5 text-[15px] font-bold text-white shadow-[0_3px_0_#1747A5] hover:bg-[#1D4ED8] focus-visible:ring-[4px] focus-visible:ring-[#2563EB]/35"
+                                            >
+                                                <History className="size-[18px]" />
+                                                Trazabilidad
                                             </Button>
                                         </div>
                                     </article>
@@ -331,6 +363,23 @@ export default function ListadoProductores() {
                     </section>
                 </div>
             </main>
+            <TrazabilidadModal
+                registro={productorConTrazabilidad}
+                historial={
+                    productorConTrazabilidad
+                        ? (historialTrazabilidad[
+                              productorConTrazabilidad.numero
+                          ] ?? [])
+                        : []
+                }
+                open={productorConTrazabilidad !== null}
+                returnFocusRef={trazabilidadTriggerRef}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setProductorConTrazabilidad(null);
+                    }
+                }}
+            />
         </>
     );
 }

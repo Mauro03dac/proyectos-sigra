@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { FormularioHeader } from '@/components/formulario-header';
+import { FormularioSeccionesNav } from '@/components/formulario-secciones-nav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,12 +69,70 @@ const toneStyles: Record<SectionTone, string> = {
     yellow: 'bg-[#FFC933] text-[#3A2A00] shadow-[0_4px_0_#B78A0E]',
 };
 
+const seccionesNavProductor = [
+    {
+        number: 1,
+        label: 'Productor y predio',
+        id: 'productor-predio',
+        colorClass: 'bg-[#17803D] text-white',
+    },
+    {
+        number: 2,
+        label: 'Población diferencial',
+        id: 'poblacion-diferencial',
+        colorClass: 'bg-[#1B86B5] text-white',
+    },
+    {
+        number: 3,
+        label: 'Información del predio',
+        id: 'informacion-predio',
+        colorClass: 'bg-[#4E9A2B] text-white',
+    },
+    {
+        number: 4,
+        label: 'Ganadería bovina',
+        id: 'ganaderia-bovina',
+        colorClass: 'bg-[#E0573F] text-white',
+    },
+    {
+        number: 5,
+        label: 'Producción y manejo',
+        id: 'produccion-manejo',
+        colorClass: 'bg-[#FFC933] text-[#3A2A00]',
+    },
+    {
+        number: 6,
+        label: 'Instalaciones',
+        id: 'instalaciones',
+        colorClass: 'bg-[#17803D] text-white',
+    },
+    {
+        number: 7,
+        label: 'Inventario agropecuario',
+        id: 'inventario-agropecuario',
+        colorClass: 'bg-[#1B86B5] text-white',
+    },
+    {
+        number: 8,
+        label: 'Actividad agrícola',
+        id: 'actividad-agricola',
+        colorClass: 'bg-[#4E9A2B] text-white',
+    },
+    {
+        number: 9,
+        label: 'Cierre',
+        id: 'productor-cierre',
+        colorClass: 'bg-[#E0573F] text-white',
+    },
+] as const;
+
 function SectionCard({
     number,
     title,
     description,
     icon: Icon,
     tone,
+    id,
     children,
 }: {
     number: string;
@@ -81,10 +140,14 @@ function SectionCard({
     description: string;
     icon: LucideIcon;
     tone: SectionTone;
+    id?: string;
     children: ReactNode;
 }) {
     return (
-        <section className="rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]">
+        <section
+            id={id}
+            className="scroll-mt-6 rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]"
+        >
             <div className="mb-6 flex items-start gap-4 border-b-2 border-dashed border-[#B5CAAE] pb-5 dark:border-[#3E5B46]">
                 <span
                     className={cn(
@@ -658,11 +721,14 @@ export default function CrearRegistroProductor() {
                         badges={[{ label: 'Nuevo registro', tone: 'accent' }]}
                     />
 
+                    <FormularioSeccionesNav sections={seccionesNavProductor} />
+
                     <form
                         onSubmit={handleSubmit}
                         className="flex flex-col gap-6"
                     >
                         <SectionCard
+                            id="productor-predio"
                             number="1"
                             title="Información del productor y ubicación del predio"
                             description="Identificación, contacto y coordenadas editables del predio."
@@ -806,6 +872,7 @@ export default function CrearRegistroProductor() {
                         </SectionCard>
 
                         <SectionCard
+                            id="poblacion-diferencial"
                             number="2"
                             title="Tipo de población diferencial"
                             description="Seleccione todas las condiciones que correspondan al productor."
@@ -823,6 +890,7 @@ export default function CrearRegistroProductor() {
                         </SectionCard>
 
                         <SectionCard
+                            id="informacion-predio"
                             number="3"
                             title="Información general del predio"
                             description="Identificación, áreas según uso y características físicas del predio."
@@ -960,6 +1028,7 @@ export default function CrearRegistroProductor() {
                         </SectionCard>
 
                         <SectionCard
+                            id="ganaderia-bovina"
                             number="4"
                             title="Información general — Ganadería bovina"
                             description="Caracterice el tipo de explotación, el sistema de producción y las razas o cruces."
@@ -1007,6 +1076,7 @@ export default function CrearRegistroProductor() {
                         </SectionCard>
 
                         <SectionCard
+                            id="produccion-manejo"
                             number="5"
                             title="Información de la producción y manejo — Ganadería bovina"
                             description="Registre comercialización, producción, destino, suplementación y asistencia técnica."
@@ -1140,6 +1210,7 @@ export default function CrearRegistroProductor() {
                         </SectionCard>
 
                         <SectionCard
+                            id="instalaciones"
                             number="6"
                             title="Instalaciones"
                             description="Marque con una X las instalaciones disponibles en el predio."
@@ -1157,6 +1228,7 @@ export default function CrearRegistroProductor() {
                         </SectionCard>
 
                         <SectionCard
+                            id="inventario-agropecuario"
                             number="7"
                             title="Inventario agropecuario"
                             description="Registre los cultivos, especies, razas y cantidades que correspondan al predio."
@@ -1326,6 +1398,7 @@ export default function CrearRegistroProductor() {
                         </SectionCard>
 
                         <SectionCard
+                            id="actividad-agricola"
                             number="8"
                             title="Descripción de la actividad productiva agrícola principal"
                             description="Complete las características técnicas, de manejo, postcosecha, comercialización y limitantes."
@@ -2072,7 +2145,10 @@ export default function CrearRegistroProductor() {
                             </div>
                         </SectionCard>
 
-                        <section className="rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]">
+                        <section
+                            id="productor-cierre"
+                            className="scroll-mt-6 rounded-[28px] border-[1.5px] border-[#B5CAAE] bg-white p-5 shadow-[0_6px_0_rgba(14,59,42,0.12),0_22px_32px_-22px_rgba(14,59,42,0.55)] sm:p-7 dark:border-[#3E5B46] dark:bg-[#1B2A21]"
+                        >
                             <div className="mb-6 flex items-start gap-4 border-b-2 border-dashed border-[#B5CAAE] pb-5 dark:border-[#3E5B46]">
                                 <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[#1B86B5] text-white shadow-[0_4px_0_#12668A]">
                                     <Landmark className="size-7" />

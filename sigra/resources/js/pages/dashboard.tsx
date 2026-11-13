@@ -1,10 +1,11 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
     CalendarDays,
     ClipboardList,
     FileText,
     Filter,
+    History,
     MapPin,
     Pencil,
     Plus,
@@ -14,16 +15,27 @@ import {
     X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EstadoVisitaBadge } from '@/components/estado-visita-badge';
 import { Input } from '@/components/ui/input';
+import { SigraSelect } from '@/components/ui/sigra-select';
+import { TrazabilidadModal } from '@/components/trazabilidad-modal';
+import type {
+    RegistroTrazabilidad,
+    VersionTrazabilidad,
+} from '@/types/trazabilidad';
 import { dashboard } from '@/routes';
 import { crear } from '@/routes/visitas-extensionismo';
 
 type RegistroDashboard = {
+    entidad: 'visita_extensionismo';
+    etiquetaEntidad: 'Visita';
     numero: string;
     productor: string;
+    predio: string;
     extensionista: string;
     vereda: string;
     estado: string;
+    estadoReal: string;
     fecha: string;
     tipoVisita: string;
     fechaParaFiltro: string;
@@ -31,6 +43,11 @@ type RegistroDashboard = {
 
 type PageProps = {
     registros?: RegistroDashboard[];
+    historialTrazabilidad?: Record<string, VersionTrazabilidad[]>;
+    indicadores?: {
+        visitasExtensionismo: number;
+        productoresRegistrados: number;
+    };
 };
 
 function CampoSeleccion({
@@ -53,27 +70,26 @@ function CampoSeleccion({
             <span className="text-[15px] font-semibold text-[#10281D]">
                 {label}
             </span>
-            <div className="relative">
-                <Icon className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-[#2F6A45]" />
-                <select
-                    value={value}
-                    onChange={(event) => onChange(event.target.value)}
-                    className="h-12 w-full appearance-none rounded-[16px] border-[1.5px] border-[#6F9479] bg-[#F7FBF4] py-2 pr-10 pl-12 text-[16px] text-[#10281D] transition outline-none hover:border-[#17803D] focus:border-[#17803D] focus:bg-white focus:ring-[4px] focus:ring-[#4E9A2B]/30"
-                >
-                    <option value="">{placeholder}</option>
-                    {options.map((option) => (
-                        <option key={option} value={option}>
-                            {option}
-                        </option>
-                    ))}
-                </select>
-            </div>
+            <SigraSelect
+                icon={Icon}
+                value={value}
+                onValueChange={onChange}
+                placeholder={placeholder}
+                options={options.map((option) => ({
+                    value: option,
+                    label: option,
+                }))}
+            />
         </label>
     );
 }
 
 export default function Dashboard() {
-    const { registros: registrosDisponibles = [] } = usePage<PageProps>().props;
+    const {
+        registros: registrosDisponibles = [],
+        historialTrazabilidad = {},
+        indicadores: indicadoresReales,
+    } = usePage<PageProps>().props;
     const [busqueda, setBusqueda] = useState('');
     const [tipoVisita, setTipoVisita] = useState('');
     const [extensionista, setExtensionista] = useState('');
@@ -84,6 +100,9 @@ export default function Dashboard() {
     const [visitaConAccionPendiente, setVisitaConAccionPendiente] = useState<
         string | null
     >(null);
+    const [registroConTrazabilidad, setRegistroConTrazabilidad] =
+        useState<RegistroTrazabilidad | null>(null);
+    const trazabilidadTriggerRef = useRef<HTMLButtonElement | null>(null);
 
     const tiposVisita = [
         ...new Set(registrosDisponibles.map((registro) => registro.tipoVisita)),
@@ -132,7 +151,7 @@ export default function Dashboard() {
     const indicadores = [
         {
             title: 'Visitas de extensionismo',
-            value: 0,
+            value: indicadoresReales?.visitasExtensionismo ?? 0,
             description: 'Visitas registradas',
             icon: ClipboardList,
             iconClassName: 'bg-[#17803D] text-white',
@@ -146,7 +165,7 @@ export default function Dashboard() {
         },
         {
             title: 'Productores registrados',
-            value: 0,
+            value: indicadoresReales?.productoresRegistrados ?? 0,
             description: 'Total de productores',
             icon: UsersRound,
             iconClassName: 'bg-[#FFC933] text-[#3A2A00]',
@@ -376,11 +395,10 @@ export default function Dashboard() {
                                                     {registro.numero}
                                                 </h3>
                                             </div>
-                                            <span
-                                                className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-[15px] font-extrabold ${registro.estado === 'Completada' ? 'bg-[#E4F1DD] text-[#2F6A45]' : 'bg-[#FFF4CC] text-[#665000]'}`}
-                                            >
-                                                {registro.estado}
-                                            </span>
+                                            <EstadoVisitaBadge
+                                                estado={registro.estadoReal}
+                                                etiqueta={registro.estado}
+                                            />
                                         </div>
                                         <dl className="mt-6 grid gap-5 sm:grid-cols-2">
                                             <div>
@@ -389,6 +407,14 @@ export default function Dashboard() {
                                                 </dt>
                                                 <dd className="mt-1 text-[16px] font-bold text-[#10281D]">
                                                     {registro.productor}
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-[15px] font-semibold text-[#3E5547]">
+                                                    Predio
+                                                </dt>
+                                                <dd className="mt-1 text-[16px] font-bold text-[#10281D]">
+                                                    {registro.predio}
                                                 </dd>
                                             </div>
                                             <div>
@@ -455,6 +481,20 @@ export default function Dashboard() {
                                                 <FileText className="size-[18px]" />
                                                 PDF
                                             </Button>
+                                            <Button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    trazabilidadTriggerRef.current =
+                                                        event.currentTarget;
+                                                    setRegistroConTrazabilidad(
+                                                        registro,
+                                                    );
+                                                }}
+                                                className="min-h-11 rounded-[14px] bg-[#2563EB] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#1747A5] hover:bg-[#1D4ED8] focus-visible:ring-[4px] focus-visible:ring-[#2563EB]/35"
+                                            >
+                                                <History className="size-[18px]" />
+                                                Trazabilidad
+                                            </Button>
                                         </div>
                                         {visitaConAccionPendiente ===
                                             registro.numero && (
@@ -481,6 +521,23 @@ export default function Dashboard() {
                     </section>
                 </div>
             </main>
+            <TrazabilidadModal
+                registro={registroConTrazabilidad}
+                historial={
+                    registroConTrazabilidad
+                        ? (historialTrazabilidad[
+                              registroConTrazabilidad.numero
+                          ] ?? [])
+                        : []
+                }
+                open={registroConTrazabilidad !== null}
+                returnFocusRef={trazabilidadTriggerRef}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setRegistroConTrazabilidad(null);
+                    }
+                }}
+            />
         </>
     );
 }

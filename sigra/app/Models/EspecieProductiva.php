@@ -12,15 +12,11 @@ class EspecieProductiva extends Model
 
     protected $primaryKey = 'especie_productiva';
 
-    public const CREATED_AT = 'fecha_creacion';
-
-    public const UPDATED_AT = 'fecha_actualizacion';
-
     protected $fillable = ['linea_productiva', 'codigo', 'nombre', 'grupo', 'activo'];
 
     protected function casts(): array
     {
-        return ['activo' => 'boolean', 'fecha_creacion' => 'datetime', 'fecha_actualizacion' => 'datetime'];
+        return ['activo' => 'boolean'];
     }
 
     /** @return BelongsTo<LineaProductiva, $this> */
