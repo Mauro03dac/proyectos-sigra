@@ -18,6 +18,7 @@ type SigraSelectProps = {
     'aria-labelledby'?: string;
     'aria-required'?: boolean;
     required?: boolean;
+    disabled?: boolean;
 };
 
 export function SigraSelect({
@@ -31,6 +32,7 @@ export function SigraSelect({
     'aria-labelledby': ariaLabelledby,
     'aria-required': ariaRequired,
     required,
+    disabled = false,
 }: SigraSelectProps) {
     const generatedId = useId();
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -167,6 +169,7 @@ export function SigraSelect({
                 name={name}
                 value={seleccion}
                 required={required}
+                disabled={disabled}
                 onChange={(event) => {
                     setSeleccion(event.target.value);
                     onValueChange?.(event.target.value);
@@ -186,6 +189,7 @@ export function SigraSelect({
                 ref={triggerRef}
                 id={selectorId}
                 type="button"
+                disabled={disabled}
                 aria-haspopup="listbox"
                 aria-expanded={abierto}
                 aria-labelledby={ariaLabelledby}
@@ -217,6 +221,8 @@ export function SigraSelect({
                 className={cn(
                     'relative flex h-[50px] w-full items-center rounded-[16px] border-[1.5px] border-[#6F9479] bg-[#F7FBF4] px-[18px] pr-12 text-left text-[16px] text-[#10281D] transition outline-none hover:border-[#17803D] focus:border-[#17803D] focus:bg-white focus:ring-[4px] focus:ring-[#4E9A2B]/30',
                     Icon && 'pl-[52px]',
+                    disabled &&
+                        'cursor-not-allowed border-[#557A62] bg-[#F0F8EC] text-[#355443] opacity-100 hover:border-[#557A62] dark:bg-[#24382A] dark:text-[#BFD9C5]',
                 )}
             >
                 {Icon && <Icon className="pointer-events-none absolute left-[17px] size-5 text-[#2F6A45]" strokeWidth={1.9} />}

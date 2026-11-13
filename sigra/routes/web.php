@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProductorController;
+use App\Http\Controllers\RegistroRueaController;
 use App\Http\Controllers\VisitaExtensionismoController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,10 +20,13 @@ Route::middleware(['auth'])->group(function () {
     Route::put('visitas-extensionismo/{visita}/borrador', [VisitaExtensionismoController::class, 'updateBorrador'])->name('visitas-extensionismo.borrador.actualizar');
     Route::put('visitas-extensionismo/{visita}', [VisitaExtensionismoController::class, 'update'])->name('visitas-extensionismo.update');
     Route::get('visitas-extensionismo/productores', [VisitaExtensionismoController::class, 'buscarProductores'])->name('visitas-extensionismo.productores.buscar');
-    Route::inertia('registro-ruea', 'registro-ruea/listado')
-        ->name('registro-ruea.index');
-    Route::inertia('registro-ruea/crear', 'registro-ruea/crear')
-        ->name('registro-ruea.crear');
+    Route::get('registro-ruea', [RegistroRueaController::class, 'index'])->name('registro-ruea.index');
+    Route::get('registro-ruea/crear', [RegistroRueaController::class, 'create'])->name('registro-ruea.crear');
+    Route::post('registro-ruea/borrador', [RegistroRueaController::class, 'storeBorrador'])->name('registro-ruea.borrador');
+    Route::post('registro-ruea', [RegistroRueaController::class, 'store'])->name('registro-ruea.store');
+    Route::get('registro-ruea/{registro}/editar', [RegistroRueaController::class, 'edit'])->name('registro-ruea.editar');
+    Route::put('registro-ruea/{registro}/borrador', [RegistroRueaController::class, 'updateBorrador'])->name('registro-ruea.borrador.actualizar');
+    Route::put('registro-ruea/{registro}', [RegistroRueaController::class, 'update'])->name('registro-ruea.update');
     Route::inertia('registro-productor', 'registro-productor/listado')
         ->name('registro-productor.index');
     Route::inertia('registro-productor/crear', 'registro-productor/crear')

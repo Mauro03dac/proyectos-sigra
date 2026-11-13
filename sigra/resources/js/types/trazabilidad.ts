@@ -15,8 +15,8 @@ export type CampoTrazabilidad = string;
 export type EstadoCompletoVisita = Record<CampoTrazabilidad, string>;
 
 export type RegistroTrazabilidad = {
-    entidad: 'visita_extensionismo' | 'productor';
-    etiquetaEntidad: 'Visita' | 'Productor';
+    entidad: 'visita_extensionismo' | 'registro_ruea' | 'productor';
+    etiquetaEntidad: 'Visita' | 'RUEA' | 'Productor';
     numero: string;
     productor: string;
     extensionista: string;

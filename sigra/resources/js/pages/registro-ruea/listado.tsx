@@ -1,14 +1,13 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     CalendarDays,
     ChevronLeft,
     ChevronRight,
     ClipboardList,
-    FileText,
     Filter,
+    History,
     MapPin,
-    Pencil,
     Plus,
     Search,
     UserRound,
@@ -18,9 +17,16 @@ import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SigraSelect } from '@/components/ui/sigra-select';
+import { TrazabilidadModal } from '@/components/trazabilidad-modal';
 import { crear, index } from '@/routes/registro-ruea';
+import type {
+    RegistroTrazabilidad,
+    VersionTrazabilidad,
+} from '@/types/trazabilidad';
 
 type RegistroRUEA = {
+    entidad: 'registro_ruea';
+    etiquetaEntidad: 'RUEA';
     numero: string;
     productor: string;
     extensionista: string;
@@ -28,11 +34,13 @@ type RegistroRUEA = {
     vereda: string;
     fecha: string;
     fechaISO: string;
-    estado: 'Completado' | 'Borrador';
+    estado: 'Registrado' | 'Borrador';
+    estadoReal?: string;
 };
 
 type PageProps = {
     registros?: RegistroRUEA[];
+    historialTrazabilidad?: Record<string, VersionTrazabilidad[]>;
 };
 
 const registrosPorPagina = 2;
@@ -72,36 +80,9 @@ function FiltroSeleccion({
     );
 }
 
-function AccionPendiente({
-    registro,
-    accion,
-    onClick,
-}: {
-    registro: RegistroRUEA;
-    accion: string;
-    onClick: (registro: RegistroRUEA, accion: string) => void;
-}) {
-    return (
-        <Button
-            type="button"
-            onClick={() => onClick(registro, accion)}
-            className={
-                accion === 'Editar'
-                    ? 'min-h-11 rounded-[14px] bg-[#B45309] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#7F3605] hover:bg-[#92400E] focus-visible:ring-[4px] focus-visible:ring-[#B45309]/35'
-                    : accion === 'PDF'
-                      ? 'min-h-11 rounded-[14px] bg-[#DC2626] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#B91C1C] hover:bg-[#B91C1C] focus-visible:ring-[4px] focus-visible:ring-[#DC2626]/35'
-                      : 'min-h-11 rounded-[14px] bg-[#2563EB] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#1747A5] hover:bg-[#1D4ED8] focus-visible:ring-[4px] focus-visible:ring-[#2563EB]/35'
-            }
-        >
-            {accion === 'Editar' && <Pencil className="size-[18px]" />}
-            {accion === 'PDF' && <FileText className="size-[18px]" />}
-            {accion}
-        </Button>
-    );
-}
-
 export default function ListadoRUEA() {
-    const { registros: registrosRUEA = [] } = usePage<PageProps>().props;
+    const { registros: registrosRUEA = [], historialTrazabilidad = {} } =
+        usePage<PageProps>().props;
     const [busqueda, setBusqueda] = useState('');
     const [productor, setProductor] = useState('');
     const [extensionista, setExtensionista] = useState('');
@@ -110,10 +91,9 @@ export default function ListadoRUEA() {
     const [fechaHasta, setFechaHasta] = useState('');
     const [estado, setEstado] = useState('');
     const [pagina, setPagina] = useState(1);
-    const [accionPendiente, setAccionPendiente] = useState<{
-        numero: string;
-        accion: string;
-    } | null>(null);
+    const [registroConTrazabilidad, setRegistroConTrazabilidad] =
+        useState<RegistroTrazabilidad | null>(null);
+    const trazabilidadTriggerRef = useRef<HTMLButtonElement | null>(null);
 
     const extensionistas = useMemo(
         () =>
@@ -122,21 +102,21 @@ export default function ListadoRUEA() {
                     registrosRUEA.map((registro) => registro.extensionista),
                 ),
             ),
-        [],
+        [registrosRUEA],
     );
     const veredas = useMemo(
         () =>
             Array.from(
                 new Set(registrosRUEA.map((registro) => registro.vereda)),
             ),
-        [],
+        [registrosRUEA],
     );
     const estados = useMemo(
         () =>
             Array.from(
                 new Set(registrosRUEA.map((registro) => registro.estado)),
             ),
-        [],
+        [registrosRUEA],
     );
 
     const registrosFiltrados = useMemo(() => {
@@ -244,10 +224,6 @@ export default function ListadoRUEA() {
         setFechaDesde('');
         setFechaHasta('');
         setEstado('');
-    };
-
-    const mostrarAccionPendiente = (registro: RegistroRUEA, accion: string) => {
-        setAccionPendiente({ numero: registro.numero, accion });
     };
 
     return (
@@ -473,7 +449,7 @@ export default function ListadoRUEA() {
                                             <span
                                                 className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-[15px] font-extrabold ${
                                                     registro.estado ===
-                                                    'Completado'
+                                                    'Registrado'
                                                         ? 'bg-[#E4F1DD] text-[#2F6A45]'
                                                         : 'bg-[#FFF4CC] text-[#665000]'
                                                 }`}
@@ -532,28 +508,38 @@ export default function ListadoRUEA() {
                                         </dl>
 
                                         <div className="mt-6 flex flex-wrap gap-3 border-t-2 border-dashed border-[#B5CAAE] pt-5 dark:border-[#3E5B46]">
-                                            {['Editar', 'PDF'].map((accion) => (
-                                                <AccionPendiente
-                                                    key={accion}
-                                                    registro={registro}
-                                                    accion={accion}
-                                                    onClick={
-                                                        mostrarAccionPendiente
-                                                    }
-                                                />
-                                            ))}
-                                        </div>
-                                        {accionPendiente?.numero ===
-                                            registro.numero && (
-                                            <p
-                                                role="status"
-                                                className="mt-4 text-[15px] font-semibold text-[#3E5547] dark:text-[#BFD9C5]"
+                                            <Button
+                                                asChild
+                                                className="min-h-11 rounded-[14px] bg-[#B45309] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#7F3605] hover:bg-[#92400E] focus-visible:ring-[4px] focus-visible:ring-[#B45309]/35"
                                             >
-                                                {accionPendiente.accion}:
-                                                funcionalidad pendiente hasta
-                                                integrar la persistencia.
-                                            </p>
-                                        )}
+                                                <Link
+                                                    href={`/registro-ruea/${registro.numero}/editar`}
+                                                >
+                                                    Editar
+                                                </Link>
+                                            </Button>
+                                            <Button
+                                                ref={(element) => {
+                                                    if (
+                                                        registroConTrazabilidad?.numero ===
+                                                        registro.numero
+                                                    ) {
+                                                        trazabilidadTriggerRef.current =
+                                                            element;
+                                                    }
+                                                }}
+                                                type="button"
+                                                onClick={() =>
+                                                    setRegistroConTrazabilidad(
+                                                        registro,
+                                                    )
+                                                }
+                                                className="min-h-11 rounded-[14px] bg-[#2563EB] px-4 text-[15px] font-bold text-white shadow-[0_3px_0_#1747A5] hover:bg-[#1D4ED8] focus-visible:ring-[4px] focus-visible:ring-[#2563EB]/35"
+                                            >
+                                                <History className="size-[18px]" />
+                                                Trazabilidad
+                                            </Button>
+                                        </div>
                                     </article>
                                 ))}
                             </div>
@@ -608,6 +594,21 @@ export default function ListadoRUEA() {
                     </section>
                 </div>
             </main>
+            <TrazabilidadModal
+                registro={registroConTrazabilidad}
+                historial={
+                    registroConTrazabilidad
+                        ? (historialTrazabilidad[
+                              registroConTrazabilidad.numero
+                          ] ?? [])
+                        : []
+                }
+                open={registroConTrazabilidad !== null}
+                onOpenChange={(open) => {
+                    if (!open) setRegistroConTrazabilidad(null);
+                }}
+                returnFocusRef={trazabilidadTriggerRef}
+            />
         </>
     );
 }

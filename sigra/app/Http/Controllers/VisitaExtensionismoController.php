@@ -180,7 +180,13 @@ class VisitaExtensionismoController extends Controller
         $documento = trim((string) $request->input('numero_documento', ''));
         $nombres = trim((string) $request->input('nombres', ''));
         $apellidos = trim((string) $request->input('apellidos', ''));
-        $consulta = Productor::query()->with(['predios.divipola', 'predios.corregimiento', 'predios.vereda']);
+        $consulta = Productor::query()->with([
+            'predios.divipola',
+            'predios.corregimiento',
+            'predios.vereda',
+            'predios.visitasExtensionismo.lineaProductivaPrincipal',
+            'predios.visitasExtensionismo.especieProductiva',
+        ]);
 
         if ($tipoDocumento !== '') {
             if ($documento === '') {
@@ -271,7 +277,46 @@ class VisitaExtensionismoController extends Controller
     /** @return array<string, mixed> */
     private function datosProductor(Productor $productor): array
     {
-        return ['productor' => $productor->getKey(), 'nombres' => $productor->nombres, 'apellidos' => $productor->apellidos, 'tipo_documento' => $productor->tipo_documento, 'numero_documento' => $productor->numero_documento, 'telefono' => $productor->telefono, 'sexo' => $productor->sexo, 'predios' => $productor->predios->map(fn (Predio $predio): array => ['predio' => $predio->getKey(), 'nombre' => $predio->nombre, 'divipola' => $predio->divipola, 'corregimiento' => $predio->corregimiento, 'vereda' => $predio->vereda, 'latitud' => $predio->latitud, 'longitud' => $predio->longitud])->all()];
+        return [
+            'productor' => $productor->getKey(),
+            'nombres' => $productor->nombres,
+            'apellidos' => $productor->apellidos,
+            'nombre_completo' => $productor->nombre_completo,
+            'tipo_documento' => $productor->tipo_documento,
+            'numero_documento' => $productor->numero_documento,
+            'telefono' => $productor->telefono,
+            'fecha_nacimiento' => $productor->fecha_nacimiento?->format('Y-m-d'),
+            'sexo' => $productor->sexo,
+            'predios' => $productor->predios->map(function (Predio $predio): array {
+                $divipola = $predio->relationLoaded('divipola') ? $predio->getRelation('divipola') : null;
+                $corregimiento = $predio->relationLoaded('corregimiento') ? $predio->getRelation('corregimiento') : null;
+                $vereda = $predio->relationLoaded('vereda') ? $predio->getRelation('vereda') : null;
+                $visita = $predio->relationLoaded('visitasExtensionismo')
+                    ? $predio->getRelation('visitasExtensionismo')->sortByDesc('visita_extensionismo')->first()
+                    : null;
+                $actividad = $visita?->lineaProductivaPrincipal?->nombre;
+                if ($visita?->especieProductiva?->nombre) {
+                    $actividad = trim(($actividad ?? '').' / '.$visita->especieProductiva->nombre, ' /');
+                }
+
+                return [
+                    'predio' => $predio->getKey(),
+                    'nombre' => $predio->nombre,
+                    'divipola' => (int) $predio->getRawOriginal('divipola'),
+                    'codigo_departamento' => $divipola?->codigo_departamento,
+                    'nombre_departamento' => $divipola?->nombre_departamento,
+                    'nombre_municipio' => $divipola?->nombre_municipio,
+                    'corregimiento' => $predio->getRawOriginal('corregimiento'),
+                    'nombre_corregimiento' => $corregimiento?->nombre,
+                    'vereda' => $predio->getRawOriginal('vereda'),
+                    'nombre_vereda' => $vereda?->nombre,
+                    'latitud' => $predio->latitud,
+                    'longitud' => $predio->longitud,
+                    'hectareas' => $predio->hectareas,
+                    'actividad_productiva' => $actividad,
+                ];
+            })->all(),
+        ];
     }
 
     /** @return array<string, mixed> */

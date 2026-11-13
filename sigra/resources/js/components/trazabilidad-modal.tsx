@@ -42,8 +42,18 @@ export function TrazabilidadModal({
     const versionesOrdenadas = [...historial].sort(
         (versionA, versionB) => versionB.numero - versionA.numero,
     );
-    const nombreEntidad = registro?.entidad === 'productor' ? 'productor' : 'visita';
-    const preposicionEntidad = registro?.entidad === 'productor' ? 'del productor' : 'de la visita';
+    const esProductor = registro?.entidad === 'productor';
+    const esRuea = registro?.entidad === 'registro_ruea';
+    const nombreEntidad = esProductor
+        ? 'productor'
+        : esRuea
+          ? 'RUEA'
+          : 'visita';
+    const preposicionEntidad = esProductor
+        ? 'del productor'
+        : esRuea
+          ? 'del RUEA'
+          : 'de la visita';
 
     useEffect(() => {
         if (!open || !registro) {
@@ -106,7 +116,7 @@ export function TrazabilidadModal({
                                 <UserRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                                 <div className="min-w-0">
                                     <p className="text-xs font-bold tracking-wide text-[#52645A] uppercase dark:text-[#C4D5C8]">
-                                    {registro.entidad === 'productor' ? 'Nombre' : 'Productor'}
+                                        {esProductor ? 'Nombre' : 'Productor'}
                                     </p>
                                     <p className="mt-1 font-semibold break-words text-foreground">
                                         {registro.productor}
@@ -117,7 +127,9 @@ export function TrazabilidadModal({
                                 <CalendarDays className="mt-0.5 size-4 shrink-0 text-[#52645A] dark:text-[#C4D5C8]" />
                                 <div className="min-w-0">
                                     <p className="text-xs font-bold tracking-wide text-[#52645A] uppercase dark:text-[#C4D5C8]">
-                                        {registro.entidad === 'productor' ? 'Fecha de registro' : 'Fecha de visita'}
+                                        {esProductor || esRuea
+                                            ? 'Fecha de registro'
+                                            : 'Fecha de visita'}
                                     </p>
                                     <p className="mt-1 font-semibold break-words text-foreground">
                                         {registro.fecha}
@@ -128,7 +140,9 @@ export function TrazabilidadModal({
                                 <UserRound className="mt-0.5 size-4 shrink-0 text-[#52645A] dark:text-[#C4D5C8]" />
                                 <div className="min-w-0">
                                     <p className="text-xs font-bold tracking-wide text-[#52645A] uppercase dark:text-[#C4D5C8]">
-                                        {registro.entidad === 'productor' ? 'Usuario responsable' : 'Extensionista'}
+                                        {esProductor
+                                            ? 'Usuario responsable'
+                                            : 'Extensionista'}
                                     </p>
                                     <p className="mt-1 font-semibold break-words text-foreground">
                                         {registro.extensionista}

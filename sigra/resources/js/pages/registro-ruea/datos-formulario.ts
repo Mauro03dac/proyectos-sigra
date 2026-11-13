@@ -19,43 +19,43 @@ export const seccionesRUEA = [
         titulo: 'Desarrollo de capacidades humanas y técnicas',
         preguntas: [
             {
-                id: 'pregunta-01',
+                id: 'S1_P01',
                 texto: '¿Según su sistema productivo, con cuál de las siguientes opciones se identifica?',
             },
             {
-                id: 'pregunta-02',
+                id: 'S1_P02',
                 texto: '¿El productor presenta actividades productivas secundarias con qué enfoque o proyección?',
             },
             {
-                id: 'pregunta-03',
+                id: 'S1_P03',
                 texto: '¿Cómo es su acceso a tipo de herramientas y equipos para ser empleados en su proceso productivo?',
             },
             {
-                id: 'pregunta-04',
+                id: 'S1_P04',
                 texto: '¿Cuál es su estado actual con respecto a las BPA?',
             },
             {
-                id: 'pregunta-05',
+                id: 'S1_P05',
                 texto: '¿Cómo es la forma de comercialización del productor?',
             },
             {
-                id: 'pregunta-06',
+                id: 'S1_P06',
                 texto: '¿A qué tipo de mercado lleva su producto?',
             },
             {
-                id: 'pregunta-07',
+                id: 'S1_P07',
                 texto: '¿A qué nivel de valor agregado lleva su producto?',
             },
             {
-                id: 'pregunta-08',
+                id: 'S1_P08',
                 texto: '¿Gestiona registros de su sistema productivo?',
             },
             {
-                id: 'pregunta-09',
+                id: 'S1_P09',
                 texto: '¿Cómo es la vinculación de mano de obra?',
             },
             {
-                id: 'pregunta-10',
+                id: 'S1_P10',
                 texto: '¿Tiene acceso a créditos?',
             },
         ],
@@ -66,31 +66,31 @@ export const seccionesRUEA = [
         titulo: 'Desarrollo de capacidades sociales integrales y fortalecimiento de la asociatividad',
         preguntas: [
             {
-                id: 'pregunta-11',
+                id: 'S2_P01',
                 texto: '¿Está vinculado a algún tipo de organización?',
             },
             {
-                id: 'pregunta-12',
+                id: 'S2_P02',
                 texto: '¿Participa en actividades productivas de manera colectiva?',
             },
             {
-                id: 'pregunta-13',
+                id: 'S2_P03',
                 texto: '¿Participa el productor en procesos de emprendimiento y asociatividad?',
             },
             {
-                id: 'pregunta-14',
+                id: 'S2_P04',
                 texto: '¿Participa en alianzas comerciales?',
             },
             {
-                id: 'pregunta-15',
+                id: 'S2_P05',
                 texto: '¿Accede a apoyo técnico para el manejo de su sistema productivo?',
             },
             {
-                id: 'pregunta-16',
+                id: 'S2_P06',
                 texto: '¿Cuenta con sellos de calidad y certificaciones?',
             },
             {
-                id: 'pregunta-17',
+                id: 'S2_P07',
                 texto: '¿Qué conocimientos sobre propiedad intelectual posee?',
             },
         ],
@@ -101,23 +101,23 @@ export const seccionesRUEA = [
         titulo: 'Acceso a la información y uso de las TIC',
         preguntas: [
             {
-                id: 'pregunta-18',
+                id: 'S3_P01',
                 texto: '¿Qué acceso tiene a fuentes de información relacionadas con su sistema productivo?',
             },
             {
-                id: 'pregunta-19',
+                id: 'S3_P02',
                 texto: '¿Qué acceso tiene a las TIC?',
             },
             {
-                id: 'pregunta-20',
+                id: 'S3_P03',
                 texto: '¿Qué tanto utiliza las TIC para toma de decisiones?',
             },
             {
-                id: 'pregunta-21',
+                id: 'S3_P04',
                 texto: 'Para el manejo del agronegocio, ¿qué habilidades y competencias tiene en el uso de las TIC?',
             },
             {
-                id: 'pregunta-22',
+                id: 'S3_P05',
                 texto: '¿Cómo es el nivel de apropiación social del conocimiento tradicional y científico?',
             },
         ],
@@ -128,19 +128,19 @@ export const seccionesRUEA = [
         titulo: 'Gestión sostenible de los recursos naturales',
         preguntas: [
             {
-                id: 'pregunta-23',
+                id: 'S4_P01',
                 texto: '¿Conoce y planifica en su sistema productivo, actividades de conservación de la biodiversidad y el medio ambiente?',
             },
             {
-                id: 'pregunta-24',
+                id: 'S4_P02',
                 texto: '¿Conoce y planifica actividades de conservación del recurso hídrico en su sistema productivo?',
             },
             {
-                id: 'pregunta-25',
+                id: 'S4_P03',
                 texto: '¿Tiene conocimiento e implementa acciones de prevención y/o recuperación del medio ambiente enfocado en la mitigación y adaptación al cambio climático?',
             },
             {
-                id: 'pregunta-26',
+                id: 'S4_P04',
                 texto: '¿Conoce la normatividad ambiental?',
             },
         ],
@@ -151,19 +151,19 @@ export const seccionesRUEA = [
         titulo: 'Desarrollo de habilidades para la participación',
         preguntas: [
             {
-                id: 'pregunta-27',
+                id: 'S5_P01',
                 texto: '¿Tiene conocimiento sobre instancias y mecanismos de participación?',
             },
             {
-                id: 'pregunta-28',
+                id: 'S5_P02',
                 texto: '¿Tiene conocimiento sobre herramientas para la participación?',
             },
             {
-                id: 'pregunta-29',
+                id: 'S5_P03',
                 texto: '¿Conoce los mecanismos de control político y social? ¿Y ha participado en los mismos?',
             },
             {
-                id: 'pregunta-30',
+                id: 'S5_P04',
                 texto: '¿Cuál ha sido el rol del productor en la autogestión de las comunidades?',
             },
         ],
